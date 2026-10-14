@@ -182,7 +182,7 @@ The template is in [Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd).
 
 - The agent creates it on its first session if missing. If more than one matches, it stops and asks.
 - `## Checkpoints` has one entry per watched source, keyed as in the definition ([R25](#r25)).
-- `goal-agent:*` issues are not triage work ([R23](#r23)).
+- The State issue is not triage work ([R23](#r23)); the agent's findings, which carry `goal-agent:<name>`, are.
 
 *Why:* the readers of state are the agent and the user (no Engineering skill reads it), so every part the user acts on must be easy to read and edit; an issue renders linked issues with title and state and needs no commit. A non-triage label keeps it out of triage's "Unlabeled" bucket. Several Goal agents can share the label because each title names its agent. Rejected: a committed `state.md` for everything (`plugin-maintainer`'s went stale within a day and took 18 direct commits in one day) and GitHub Projects (setup, token scope, outside the issue list).
 *Source:* [Where does a Goal agent keep its state?][7]; [Which shared configuration may a Goal agent read, extend, or own?][8]; [How have plugin-maintainer's issues fared with the Engineering skills?][3]; `ai-plugin-manager: state.md`.
@@ -235,11 +235,11 @@ The template is in [Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd).
 *Source:* [Is the shared Goal agent contract a doc, a preloaded skill, or both?][12]; [What does a subagent's skills: frontmatter load, and when?][11]; [Which shared configuration may a Goal agent read, extend, or own?][8].
 
 <a id="r23"></a>
-**R23. Put tracker mechanics in a `## Goal agent operations` section of `docs/agents/issue-tracker.md`, beside Wayfinding operations: the State label and how to find, create and update the State issue, label creation, and the rule that `goal-agent:*` issues are not triage work.**
+**R23. Put tracker mechanics in a `## Goal agent operations` section of `docs/agents/issue-tracker.md`, beside Wayfinding operations: the State label and how to find, create and update the State issue, label creation, and the rule that the State issue (`goal-agent:state`) is not triage work.**
 
 - The agent may run `gh label create` only for a label named in `docs/agents/` that is missing on the tracker; it never invents one.
 
-*Why:* commands are tracker-specific and the contract is not; keeping them apart lets a GitLab repo swap only this section. No skill reliably creates labels (`setup-matt-pocock-skills` is meant to, but the plugin records it as known bug #616, and nothing creates `wayfinder:*`), so without the creation rule a first session would fail on a missing label. Triage's first bucket is "Unlabeled", so a State issue needs the explicit exclusion.
+*Why:* commands are tracker-specific and the contract is not; keeping them apart lets a GitLab repo swap only this section. No skill reliably creates labels (`setup-matt-pocock-skills` is meant to, but the plugin records it as known bug #616, and nothing creates `wayfinder:*`), so without the creation rule a first session would fail on a missing label. Triage's first bucket is "Unlabeled", so a State issue needs the explicit exclusion. It names `goal-agent:state` only: a wildcard `goal-agent:*` would also match the scope label every finding carries and take the findings out of triage ([R2](#r2)).
 *Source:* [Which shared configuration may a Goal agent read, extend, or own?][8]; [Is the shared Goal agent contract a doc, a preloaded skill, or both?][12]; `docs/engineering/triage.md:78`; `skills/engineering/triage/SKILL.md:60`.
 
 <a id="r24"></a>
@@ -492,8 +492,9 @@ Ready to paste beside Wayfinding operations. GitHub version:
 ```markdown
 ## Goal agent operations
 
-Used by Goal agents (see `docs/agents/goal-agents.md`). Issues labelled
-`goal-agent:*`, like `wayfinder:*` issues, are not triage work.
+Used by Goal agents (see `docs/agents/goal-agents.md`). The State issue
+(`goal-agent:state`), like `wayfinder:*` issues, is not triage work; issues
+labelled `goal-agent:<name>` are.
 
 - **State label**: `goal-agent:state`. Each Goal agent's scope label is
   `goal-agent:<name>`, listed in `docs/agents/goal-agents.md`.
@@ -517,8 +518,9 @@ GitLab variant:
 ```markdown
 ## Goal agent operations
 
-Used by Goal agents (see `docs/agents/goal-agents.md`). Issues labelled
-`goal-agent:*`, like `wayfinder:*` issues, are not triage work.
+Used by Goal agents (see `docs/agents/goal-agents.md`). The State issue
+(`goal-agent:state`), like `wayfinder:*` issues, is not triage work; issues
+labelled `goal-agent:<name>` are.
 
 - **State label**: `goal-agent:state`. Each Goal agent's scope label is
   `goal-agent:<name>`, listed in `docs/agents/goal-agents.md`.
