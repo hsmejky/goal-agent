@@ -41,7 +41,7 @@ Terms in bold are defined in [`GLOSSARY.md`](../GLOSSARY.md) and used as defined
 
 **In scope.** How a Goal agent files, marks, orders and tracks issues so that the Engineering skills (`triage`, `to-spec`, `to-tickets`, `implement`, `implement-spec`, `tdd`, `code-review`, `wayfinder`) can work them, and which shared files each side reads or writes. The pattern is general; it applies to any repo with the Engineering skills set up and one or more Goal agents.
 
-**Out of scope** (from [map #1][1]): a Goal agent invoking Engineering skills itself; Codex; changing the Engineering skills; running a Goal agent unattended (`claude --bg`, schedules); packaging the Goal agent contract as a preloaded skill (see [section 10](#10-open-validate-in-a-trial-run)); applying these recommendations to a specific repo.
+**Out of scope** (from [map #1][1]): a Goal agent invoking Engineering skills itself; Codex; changing the Engineering skills; running a Goal agent unattended (`claude --bg`, schedules); packaging the Goal agent contract as a preloaded skill (see [section 10](#10-trial-run)); applying these recommendations to a specific repo.
 
 **Terms.** Goal agent, Engineering skills, Objective, Order, State issue, Checkpoint, Deferred item, Spec-sized and Goal agent contract: see [`GLOSSARY.md`](../GLOSSARY.md). Triage terms (category label, state label, Agent Brief, reporter) are the `triage` skill's.
 
@@ -203,10 +203,10 @@ The template is in [Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd).
 **R18. Keep learnings in `memory: project` (`.claude/agent-memory/<name>/`); treat it as required, and commit only that directory, alone, directly to `main`, at most once per session and only when it changed, with the `Goal-agent:` trailer.**
 
 - Memory holds only how the agent does its own job (where a source lives, a quirk of a tool). A learning that is a domain term or a decision becomes an issue ([R21](#r21)).
-- At session start, a read-only check: if `CLAUDE_CODE_DISABLE_AUTO_MEMORY` is set or `autoMemoryEnabled` is false in a settings file, the session reports that memory is off and stops instead of running without it.
+- At session start, a read-only check: if `CLAUDE_CODE_DISABLE_AUTO_MEMORY` is `1`, or it is not `0` and `autoMemoryEnabled` is false in a settings file, the session reports that memory is off and stops instead of running without it. `0` forces auto memory on, even over `autoMemoryEnabled: false`, so only `1` disables it through the variable.
 
 *Why:* the first 200 lines of `MEMORY.md` are auto-loaded into every session, unlike issue comments (unbounded and never auto-loaded). With auto memory disabled the field has no effect, and a session would silently lose its learnings. One narrow commit right keeps the agent out of code, docs and configuration.
-*Source:* [Where does a Goal agent keep its state?][7], as amended by [Which shared configuration may a Goal agent read, extend, or own?][8] (no domain terms in memory) and [What does a generic Goal agent definition look like?][13] (rule in the contract, detection method); [How are a Goal agent's issues marked as agent-authored?][9] (trailer); [Claude Code sub-agents docs](https://code.claude.com/docs/en/sub-agents).
+*Source:* [Where does a Goal agent keep its state?][7], as amended by [Which shared configuration may a Goal agent read, extend, or own?][8] (no domain terms in memory) and [What does a generic Goal agent definition look like?][13] (rule in the contract, detection method); [Claude Code environment variables docs](https://code.claude.com/docs/en/env-vars) (`1` disables, `0` forces on); [How are a Goal agent's issues marked as agent-authored?][9] (trailer); [Claude Code sub-agents docs](https://code.claude.com/docs/en/sub-agents).
 
 <a id="r19"></a>
 **R19. Keep no session log and no copies of tracker facts; query open issues, labels, blocking edges and `needs-info` fresh every session.**
@@ -231,7 +231,7 @@ The template is in [Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd).
 <a id="r22"></a>
 **R22. Put the Goal agent contract and the per-repo registry in one user-written document, `docs/agents/goal-agents.md`, with two sections (`## Goal agent contract`, `## Goal agents in this repo`), linked from the `## Agent skills` block in CLAUDE.md. It is a doc, not a preloaded skill.**
 
-*Why:* one file to read and one link from CLAUDE.md; a separate contract file would be one more thing to keep in sync across repos. The user writes it because `docs/agents/` is user-owned configuration ([R21](#r21)); [Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd) is a starting point. Preloading through `skills:` is harness-guaranteed, unlike a read instruction, but it is deferred until a trial shows the doc works ([section 10](#10-open-validate-in-a-trial-run)).
+*Why:* one file to read and one link from CLAUDE.md; a separate contract file would be one more thing to keep in sync across repos. The user writes it because `docs/agents/` is user-owned configuration ([R21](#r21)); [Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd) is a starting point. Preloading through `skills:` is harness-guaranteed, unlike a read instruction, but the trial run showed the doc is enough ([section 10](#10-trial-run)).
 *Source:* [Is the shared Goal agent contract a doc, a preloaded skill, or both?][12]; [What does a subagent's skills: frontmatter load, and when?][11]; [Which shared configuration may a Goal agent read, extend, or own?][8].
 
 <a id="r23"></a>
@@ -259,7 +259,7 @@ The template is in [Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd).
 <a id="r26"></a>
 **R26. In the frontmatter, set `memory: project` and `disallowedTools: Skill`, and omit `skills:`; enforce the file boundary in prose.**
 
-*Why:* `memory: project` holds learnings ([R18](#r18)). Unlisted skills stay invocable through the Skill tool, so `disallowedTools: Skill` is the one-line way to stop the agent from running `/triage`, `/to-tickets` or other Engineering skills itself, which is out of scope. `skills:` stays empty because the contract is not preloaded yet ([R22](#r22)). A hook for the file boundary waits for evidence of a stray write ([section 10](#10-open-validate-in-a-trial-run)).
+*Why:* `memory: project` holds learnings ([R18](#r18)). Unlisted skills stay invocable through the Skill tool, so `disallowedTools: Skill` is the one-line way to stop the agent from running `/triage`, `/to-tickets` or other Engineering skills itself, which is out of scope. `skills:` stays empty because the contract is not preloaded ([R22](#r22)). The trial run showed no stray write, so the file boundary has no hook ([section 10](#10-trial-run)).
 *Source:* [What does a generic Goal agent definition look like?][13]; [What does a subagent's skills: frontmatter load, and when?][11]; [Where does a Goal agent keep its state?][7].
 
 <a id="r27"></a>
@@ -274,16 +274,16 @@ The template is in [Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd).
 *Why:* the watch list is in the definition, which the agent never writes. A watch-list change is about the agent itself, not project work, so the triage queue is the wrong place for it.
 *Source:* [What does a generic Goal agent definition look like?][13]; [Where does a Goal agent keep its state?][7].
 
-## 10. Open: validate in a trial run
+## 10. Trial run
 
-These recommendations are complete without a trial. Three points were deferred until a trial run shows whether they are needed; one research recommendation has no decision yet.
+These recommendations were complete without a trial; three points were deferred until a trial run showed whether they are needed. One full `plugin-maintainer` session in `ai-plugin-manager` ran on 2026-10-14 with Claude Code 2.1.300, plus short runs for the memory check ([trial results][14]). It settled the first two points and half of the third. One session is a small sample, so each fallback stays recorded for a later session that shows the problem. One research recommendation still has no decision.
 
-| Point | Current decision | What a trial should show | If it shows a problem |
-|---|---|---|---|
-| Preloading the contract | Doc plus read gate ([R22](#r22), [R27](#r27)) | Every session read `goal-agents.md`: every issue and comment carries the marker, the right labels and the report template. | Package the contract as a skill preloaded through `skills:`, cut along the section boundary (contract becomes the skill, registry stays in the doc). Mind that the skill then stays model-invocable in the main session unless restricted, an unresolved name is skipped silently, and `disable-model-invocation: true` blocks preloading ([What does a subagent's skills: frontmatter load, and when?][11]). |
-| Commit hook | `disallowedTools: Skill` plus prose ([R26](#r26)) | No write or commit outside `.claude/agent-memory/<name>/`, and no self-run Engineering skill. | Add a PreToolUse hook that rejects `git add`/`git commit` paths outside the memory directory. |
-| Memory sentinel | Read-only check of `CLAUDE_CODE_DISABLE_AUTO_MEMORY` and `autoMemoryEnabled` ([R18](#r18)) | With auto memory disabled, the session detects it and stops; with it enabled, learnings survive to the next session. | Add a first-run sentinel line in memory; later sessions stop if it is not in the auto-loaded context. |
-| Two-track thinking and the no-workarounds rule | None. [What do chief-of-staff and claude-handoff do, and how do they overlap with a Goal agent?][4] recommended adopting chief-of-staff's two-track thinking (tactical work plus "improve the environment for the next task", recorded as issues) and its no-workarounds rule, but no decision ticket placed them in the contract. | Whether sessions miss environment improvements or work around conventions instead of filing them. | Decide whether they belong in the Goal agent contract, then add them to `goal-agents.md`. |
+| Point | Decision after the trial | Trial evidence | Still open | If a later session shows a problem |
+|---|---|---|---|---|
+| Preloading the contract | Doc plus read gate, no preload ([R22](#r22), [R27](#r27)) | The one new issue carried the marker, the `needs-triage` and `goal-agent:<name>` labels, the four-section report template and an Objective in `## Why it matters`; no `ready-for-agent`. The session posted no comments. | Comments: none were posted, so their marker is untested. | Package the contract as a skill preloaded through `skills:`, cut along the section boundary (contract becomes the skill, registry stays in the doc). Mind that the skill then stays model-invocable in the main session unless restricted, an unresolved name is skipped silently, and `disable-model-invocation: true` blocks preloading ([What does a subagent's skills: frontmatter load, and when?][11]). |
+| Commit hook | `disallowedTools: Skill` plus prose, no hook ([R26](#r26)) | One commit, touching only `.claude/agent-memory/<name>/`, with the `Goal-agent:` trailer. Every `Write` call targeted that directory; `Bash` wrote only temporary files. No Skill tool call. The State issue's `## Order` changed only by insertion. | None. | Add a PreToolUse hook that rejects `git add`/`git commit` paths outside the memory directory. |
+| Memory sentinel | Read-only check of `CLAUDE_CODE_DISABLE_AUTO_MEMORY` and `autoMemoryEnabled` ([R18](#r18)), reworded so that only `1` disables memory through the variable | With `1` in the session's environment, the session reported memory off and stopped; with `0`, it continued. The variable must be set in the shell that launches Claude Code: set elsewhere, it never reached the session, which continued. The first wording ("is set") would have stopped on `0`, which forces memory on. | Whether learnings survive to the next session: one session cannot show it. | Add a first-run sentinel line in memory; later sessions stop if it is not in the auto-loaded context. |
+| Two-track thinking and the no-workarounds rule | None. [What do chief-of-staff and claude-handoff do, and how do they overlap with a Goal agent?][4] recommended adopting chief-of-staff's two-track thinking (tactical work plus "improve the environment for the next task", recorded as issues) and its no-workarounds rule, but no decision ticket placed them in the contract. | Not checked by the trial. | Whether sessions miss environment improvements or work around conventions instead of filing them. | Decide whether they belong in the Goal agent contract, then add them to `goal-agents.md`. |
 
 ## Appendix A: Definition skeleton
 
@@ -434,9 +434,9 @@ Start:
 
 1. Read this file, `docs/agents/issue-tracker.md`, `docs/agents/triage-labels.md`
    and `GLOSSARY.md`.
-2. Check memory: if `CLAUDE_CODE_DISABLE_AUTO_MEMORY` is set or
-   `autoMemoryEnabled` is false in a settings file, report that memory is off
-   and stop.
+2. Check memory: if `CLAUDE_CODE_DISABLE_AUTO_MEMORY` is `1`, or it is not `0`
+   and `autoMemoryEnabled` is false in a settings file, report that memory is
+   off and stop.
 3. Find your State issue. None: create it. More than one: stop and ask. A label
    missing on the tracker: create it only if this file names it.
 4. `## Handoff` present: read it, act on it, delete it.
@@ -563,3 +563,4 @@ For readers of the decision tickets: two decisions were amended by later tickets
 [11]: https://github.com/hsmejky/goal-agent/issues/11
 [12]: https://github.com/hsmejky/goal-agent/issues/12
 [13]: https://github.com/hsmejky/goal-agent/issues/13
+[14]: https://github.com/hsmejky/ai-plugin-manager/issues/91#issuecomment-6179843112
