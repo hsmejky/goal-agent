@@ -1,3 +1,7 @@
+## Project language
+
+Write project artifacts in English, including documentation, specifications, issues, ADRs, glossary entries, research notes, code comments, commit messages, and pull request text. User-facing conversation may remain in the user's language.
+
 ## Agent skills
 
 ### Issue tracker
