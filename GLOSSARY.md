@@ -18,6 +18,10 @@ _Avoid_: Priority, P-level
 The Goal agent's recommended sequence for working its open issues, derived from Objective rank and dependencies; a recommendation the user may override, never a property of a single issue.
 _Avoid_: Priority, rank, urgency
 
+**Spec-sized**:
+Said of a finding too large for one fresh context window, or not verifiable on its own; it needs a spec and slices before implementation, which the user makes, never the Goal agent.
+_Avoid_: Epic, large gap, big issue
+
 ## Goal agent state
 
 **State issue**:
