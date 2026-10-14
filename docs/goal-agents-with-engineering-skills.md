@@ -94,7 +94,7 @@ The template is in [Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd).
 
 - The threshold is `to-tickets`'s own sizing rule: it won't fit one fresh context window, or isn't verifiable on its own. The agent judges when filing; triage decides. When unsure, omit the sentence.
 - No Spec-sized label, no `Spec:` title prefix.
-- The user runs `to-spec` with the flat issue as context, then `to-tickets`, then closes the flat issue with `Superseded by <spec>`. The spec takes the flat issue's slot in the Order ([R13](#r13)).
+- The user runs `to-spec` with the flat issue as context, labels the spec `goal-agent:<name>`, runs `to-tickets`, then closes the flat issue with `Superseded by <spec>`. The spec takes the flat issue's slot in the Order ([R13](#r13)). Slices are not labelled: `to-tickets` applies only `ready-for-agent`, so they stay out of the agent's scope.
 
 *Why:* slicing is design work and belongs to the user's session. In `ai-plugin-manager`, only the spec path (#71 with slices #64–#70, PR #72) showed the Engineering shape end to end, and it started from a flat issue (#60: "There is no spec, so no slice can be run"). `implement-spec` reads no labels, so slices the agent filed would run untriaged.
 *Source:* [Should a Goal agent file flat issues or a spec with sliced tickets?][10]; `skills/engineering/to-tickets/SKILL.md:33`; `skills/engineering/implement-spec/SKILL.md`; [ai-plugin-manager#60](https://github.com/hsmejky/ai-plugin-manager/issues/60), [#71](https://github.com/hsmejky/ai-plugin-manager/issues/71).
@@ -162,8 +162,8 @@ The template is in [Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd).
 <a id="r13"></a>
 **R13. Keep the Order as native blocking edges where a real dependency exists, and otherwise as an ordered list in the State issue's `## Order`; the Order is a recommendation the user owns.**
 
-- It covers every open issue labelled `goal-agent:<name>`, user-filed included (placed by the user's stated priority, else by Objective rank). A spec that superseded one of them takes its slot (substitution, not reordering); slices never enter the Order; the spec leaves when it closes.
-- The agent re-reads the body right before every write, prunes closed issues, and inserts new ones where it recommends. It never moves an existing entry and never reverts the user's reordering. A suggested reorder goes in a marked comment on the State issue.
+- It covers every open issue labelled `goal-agent:<name>`, user-filed included (placed by the user's stated priority, else by Objective rank). A spec that superseded one of them carries the label too ([R4](#r4)) and takes its slot (substitution, not reordering); slices never enter the Order; the spec leaves when it closes.
+- The agent re-reads the body right before every write, prunes closed issues, and inserts new ones where it recommends. When a pruned issue was closed `Superseded by <spec>`, the agent puts the spec in its slot; this is the substitution, so the slot survives even if the user has not edited the Order yet. It never moves an existing entry and never reverts the user's reordering. A suggested reorder goes in a marked comment on the State issue.
 - The user reorders in the GitHub UI, without a commit.
 
 *Why:* native blocking edges are the only ordering the Engineering skills read (the `wayfinder` and `implement-spec` frontier). An ordered list in a user-editable issue keeps the user in charge of what runs next. `plugin-maintainer`'s `state.md` "What next" already held an explicit order, but in a file that went stale.
@@ -417,7 +417,8 @@ One per Goal agent, labelled `goal-agent:state`, its title naming the agent.
 Body sections:
 
 - `## Order`: ordered list of every open issue labelled `goal-agent:<name>`,
-  plus specs that superseded one of them. Slices never enter.
+  including specs that superseded one of them (the user labels the spec).
+  Slices never enter.
 - `## Deferred items`: each with its trigger.
 - `## Checkpoints`: one entry per watched source, by its Checkpoint key.
 - `## Handoff`: only while a note is pending.
