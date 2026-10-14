@@ -22,6 +22,10 @@ _Avoid_: Priority, rank, urgency
 Said of a finding too large for one fresh context window, or not verifiable on its own; it needs a spec and slices before implementation, which the user makes, never the Goal agent.
 _Avoid_: Epic, large gap, big issue
 
+**Goal agent contract**:
+The rules every Goal agent follows regardless of repo: how it files issues, marks its output, keeps its State issue, and what it never writes. What varies per repo (which Goal agents exist, their labels, tracker commands) is the repo's configuration, not part of the contract.
+_Avoid_: Shared contract, Goal agent rules
+
 ## Goal agent state
 
 **State issue**:
