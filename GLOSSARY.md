@@ -17,3 +17,17 @@ _Avoid_: Priority, P-level
 **Order**:
 The Goal agent's recommended sequence for working its open issues, derived from Objective rank and dependencies; a recommendation the user may override, never a property of a single issue.
 _Avoid_: Priority, rank, urgency
+
+## Goal agent state
+
+**State issue**:
+The one tracker issue per Goal agent that holds its Order, Deferred items, Checkpoints and any pending handoff note; the user reads and edits it alongside the agent.
+_Avoid_: State file, state.md, dashboard
+
+**Checkpoint**:
+How far a Goal agent has processed one external source it watches (for example, the last release of a Host it has examined), so the next session resumes from there.
+_Avoid_: Last seen, cursor
+
+**Deferred item**:
+Something a Goal agent has found that nobody can act on until a named external trigger fires; it is filed as an issue only after the trigger fires.
+_Avoid_: Watching, parked issue, backlog item
