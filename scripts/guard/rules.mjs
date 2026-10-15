@@ -3,7 +3,9 @@
 const halted = (event, record) =>
   record.halted ? `Goal agent is Halted: ${record.reason ?? "the State issue carries the halt marker"}. No tool may run.` : null;
 
-export const RULES = [halted];
+import { DENY_RULES } from "./deny-rules.mjs";
+
+export const RULES = [halted, ...DENY_RULES];
 
 /** A deny reason, or null to allow. */
 export function decide(event, record) {

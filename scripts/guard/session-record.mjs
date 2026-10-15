@@ -4,16 +4,16 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const dir = () => process.env.GOAL_AGENT_GUARD_DIR || join(tmpdir(), "goal-agent-guard");
+export const recordDir = () => process.env.GOAL_AGENT_GUARD_DIR || join(tmpdir(), "goal-agent-guard");
 
 function recordPath(sessionId) {
   if (typeof sessionId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(sessionId)) throw new Error("missing or unsafe session id");
-  return join(dir(), `${sessionId}.json`);
+  return join(recordDir(), `${sessionId}.json`);
 }
 
 export function writeRecord(sessionId, record) {
   const p = recordPath(sessionId);
-  mkdirSync(dir(), { recursive: true });
+  mkdirSync(recordDir(), { recursive: true });
   writeFileSync(p, JSON.stringify({ version: 1, ...record }));
 }
 
