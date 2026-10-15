@@ -108,8 +108,15 @@ test("a cross-repo reference is read in that repo", () => {
   assert.match(status.description, /alpha/);
 });
 
-test("an unknown closing issue is ignored", () => {
+test("an unknown closing issue in the same repo is ignored", () => {
   assert.equal(scenario({ body: "Closes #99" }).status.state, "success");
+  assert.equal(scenario({ body: "Closes me/COV#99" }).status.state, "success");
+});
+
+test("an unreadable cross-repo closing issue fails closed", () => {
+  const { r, status } = scenario({ body: "Closes me/other#99", other: { "me/other": { issues: [] } } });
+  assert.notEqual(r.code, 0);
+  assert.equal(status.state, "error");
 });
 
 test("markers only count from an owner, member or collaborator", () => {
@@ -181,12 +188,33 @@ test("a script error posts an error status on the head SHA and exits non-zero", 
   assert.equal(st.sha, SHA);
 });
 
+test("an error status keeps the fired record of the head SHA", () => {
+  const prior = { state: "pending", context: "goal-agent-review", description: "Waiting for Goal review from: alpha | Fired: alpha", creator: { login: "github-actions[bot]" } };
+  // PR 10 is not an issue, so listing its comments fails with a 404 after the fired record was written.
+  const h = createHarness({ repos: { [REPO]: { issues: alpha, pulls: [{ number: 10, head_sha: SHA, body: "Closes #1" }], statuses: { [SHA]: [prior] } } } });
+  harnesses.push(h);
+  const r = runGate(h, { action: "edited", pull_request: { number: 10, head: { sha: SHA } } }, "pull_request_target");
+  assert.notEqual(r.code, 0);
+  const st = h.writes.statuses.at(-1);
+  assert.equal(st.state, "error");
+  assert.match(st.description, /\| Fired: alpha$/);
+});
+
 test("a PR that cannot be read exits non-zero without a status", () => {
   const h = createHarness({ repos: { [REPO]: { issues: [] } } });
   harnesses.push(h);
   const r = runGate(h, { action: "edited", pull_request: { number: 10 } }, "pull_request_target");
   assert.notEqual(r.code, 0);
   assert.equal(h.writes.statuses.length, 0);
+});
+
+test("a repository name that is not a safe path never reaches the shell", () => {
+  const h = createHarness({ repos: { [REPO]: { issues: [] } } });
+  harnesses.push(h);
+  const eventPath = h.writeScript("event.json", JSON.stringify({ action: "edited", pull_request: { number: 10, head: { sha: SHA } } }));
+  const r = h.run(process.execPath, [gate], { env: { GITHUB_REPOSITORY: 'me/cov"; echo pwned #', GITHUB_EVENT_NAME: "pull_request_target", GITHUB_EVENT_PATH: eventPath } });
+  assert.notEqual(r.code, 0);
+  assert.match(r.stderr, /unsafe gh api path/);
 });
 
 test("an unsupported event exits non-zero", () => {

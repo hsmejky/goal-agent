@@ -11,9 +11,25 @@ const MAIN_DEST = new Set(["main", "refs/heads/main"]);
 
 const git = (cwd, args) => spawnSync("git", args, { cwd, encoding: "utf8" });
 
+const SHELLS = new Set(["bash", "sh", "zsh", "dash", "ksh", "eval", "xargs"]);
+const words = (text) => text.split(/[\s;&|()`'"{}$<>]+/);
+
+/**
+ * Text inside quotes is data, not a command, so it is blanked out before looking for `git push`
+ * -- except double-quoted text containing a substitution (`$(` or a backtick), which still runs.
+ */
+function withoutQuotedText(command) {
+  return command
+    .replace(/'[^']*'/g, "''")
+    .replace(/"(?:[^"\\]|\\.)*"/g, (q) => (/\$\(|`/.test(q) ? q : '""'));
+}
+
 function isPushCommand(command) {
-  const tokens = command.split(/[\s;&|()`'"{}$<>]+/);
-  return tokens.includes("git") && tokens.includes("push");
+  const outer = words(withoutQuotedText(command));
+  if (outer.includes("git") && outer.includes("push")) return true;
+  // A shell wrapper (`bash -c '...'`) runs its quoted argument, so look inside the quotes too.
+  const all = words(command);
+  return outer.some((w) => SHELLS.has(w)) && all.includes("git") && all.includes("push");
 }
 
 /** The ref to publish, or a deny reason. */

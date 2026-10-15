@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { readIdentity } from "./identity.mjs";
-import { readStateIssues } from "./github.mjs";
+import { readStateIssues } from "./state-issues.mjs";
 import { hasHaltMarker } from "./halt-marker.mjs";
 import { readRecord, writeRecord } from "./session-record.mjs";
 import { decide } from "./rules.mjs";

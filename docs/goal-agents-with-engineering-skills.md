@@ -92,7 +92,7 @@ R1–R37 come from the first design ([map #1][1]); R38–R61 and the edits to R1
 | Definition `.claude/agents/<name>.md` in the Home repo | Read-first gate, Goal, ranked Objectives with "Met when" criteria, Non-goals, `## Covered repos`, watched sources with Checkpoint keys, agent-specific hard limits, session steps and Goal review checks ([R25](#r25)) | User, through PRs | The Goal agent, the guard |
 | Home repo `docs/agents/goal-agents.md` § Goal agent contract | Session lifecycle, Goal review and Consultation sessions, report template, labels the agent applies, AI marker, never-write list, memory rule, State issue structure, stop-and-report rule, commit trailer ([Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd-in-the-home-repo)) | User, through PRs | The Goal agent |
 | Home repo `docs/agents/issue-tracker.md` § Goal agent operations | `gh api` REST calls: State issue, issues in scope, Findings, blocking edges, PRs, comments ([Appendix C](#appendix-c-docsagentsissue-trackermd--goal-agent-operations-in-the-home-repo)) | User, through PRs | The Goal agent |
-| Home repo `.claude/settings.json` and `.claude/hooks/` | The guard: `SessionStart` and `PreToolUse` hooks ([R45](#r45)) | User, through PRs | Claude Code |
+| Home repo `.claude/settings.json` and `scripts/` (the pinned copy of `scripts/guard`, `scripts/gate` and `scripts/home`, the hooks' code) | The guard: `SessionStart` and `PreToolUse` hooks ([R45](#r45)) | User, through PRs | Claude Code |
 | Home repo workflows | The audit of `main` ([R50](#r50)) and the daily staleness check ([R51](#r51)) | User, through PRs | GitHub Actions |
 | Home repo CLAUDE.md | Pointer to the contract and the Home repo's own rules for the user's sessions there | User, through PRs | Claude Code |
 | Home repo copies of the guard, gate and Consultation scripts | The scripts the hooks and workflows run, copied by the Home repo setup steps from the tested source in the goal-agent repo and pinned to a goal-agent commit or tag, recorded in the definition's `goal-agent-pin` field ([ADR 0006][50]) | User, through PRs | Claude Code, GitHub Actions |
@@ -670,9 +670,9 @@ The user's sessions never run a Goal agent. When a decision on an issue in the a
 
 Adding a Covered repo (it is covered once the Home repo PR is merged):
 
-1. Prerequisites in the Covered repo: check that the agent's name matches `[a-z0-9-]+` (reject any other) and differs from every Goal agent already registered there ([R57](#r57)); create the label `goal-agent:<name>`; confirm the triage docs (`docs/agents/triage-labels.md`) exist; install the Claude GitHub App; set the secret `GOAL_AGENT_<NAME>_FIRE_TOKEN` and the routine's trigger id. If the label or triage docs are missing later, the agent stops and reports ([R39](#r39)).
+1. Prerequisites in the Covered repo: check that the agent's name matches `[a-z0-9-]+` (reject any other) and differs from every Goal agent already registered there ([R57](#r57)); create the label `goal-agent:<name>`; confirm the triage docs (`docs/agents/triage-labels.md`) exist; install the Claude GitHub App; set the secrets `GOAL_AGENT_<NAME>_FIRE_TOKEN` and `GOAL_AGENT_<NAME>_TRIGGER_ID` (the routine's trigger id). If the label or triage docs are missing later, the agent stops and reports ([R39](#r39)).
 2. Home repo PR: add the repo to the definition's `## Covered repos`, with any Objective or "Met when" changes in the same PR. Then edit the routine prompt the same day ([R42](#r42)).
-3. Covered repo PR: the gate and Consultation workflows ([R37](#r37), [R54](#r54)), the agent in the `### Goal agents` block of CLAUDE.md (a new block if there is none), and the agent's row with its Home repo in `docs/agents/goal-agents.md` ([Appendix E](#appendix-e-covered-repo-files)). The gate's own PR does not fire it.
+3. Covered repo PR: the gate and Consultation workflows ([R37](#r37), [R54](#r54)) together with the scripts they run (copy `scripts/gate/*.mjs` from goal-agent to `.github/scripts/goal-agent-review/`, at the same pin as the Home repo; the workflows run that copy). Both workflows pass the whole `secrets` object to one step as `GOAL_AGENT_SECRETS`, because an expression cannot upper-case an agent name, so that step can read every secret of the repo. Nothing from the PR is executed there, which keeps the risk low, but keep the repo's secrets to those it needs. Also add the agent in the `### Goal agents` block of CLAUDE.md (a new block if there is none), and the agent's row with its Home repo in `docs/agents/goal-agents.md` ([Appendix E](#appendix-e-covered-repo-files)). The gate's own PR does not fire it.
 4. After the gate's first run on a real PR, make `goal-agent-review` a required status ([R37](#r37)).
 
 Removing a Covered repo:
@@ -1184,7 +1184,7 @@ repo. A PR whose body closes an issue labelled `goal-agent:<name>` gets a Goal
 review from that agent; the `goal-agent-review` status waits for it.
 ```
 
-Workflows: `.github/workflows/goal-agent-review.yml` ([R37](#r37)) and `.github/workflows/goal-agent-consult.yml` ([R54](#r54)); secrets per agent: `GOAL_AGENT_<NAME>_FIRE_TOKEN` and the trigger id.
+Workflows: `.github/workflows/goal-agent-review.yml` ([R37](#r37)) and `.github/workflows/goal-agent-consult.yml` ([R54](#r54)); scripts: `.github/scripts/goal-agent-review/` (the gate and Consultation scripts copied from goal-agent, pinned); secrets per agent: `GOAL_AGENT_<NAME>_FIRE_TOKEN` and `GOAL_AGENT_<NAME>_TRIGGER_ID`.
 
 ## Appendix F: Routine prompt
 

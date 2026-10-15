@@ -3,7 +3,10 @@
 // such an issue is open, opens no other. Reads the comment's `updated_at`, never its text.
 // Environment: GITHUB_REPOSITORY, optional GOAL_AGENT_NAME, GOAL_AGENT_NOW (ISO time, for tests).
 import { pathToFileURL } from "node:url";
-import { agentName, ghList, hasHaltMarker, openOrComment, stateIssues } from "./lib.mjs";
+import { ghList } from "../gate/github.mjs";
+import { hasHaltMarker } from "../guard/halt-marker.mjs";
+import { readStateIssues } from "../guard/state-issues.mjs";
+import { agentName, openOrComment } from "./lib.mjs";
 
 export const STALE_MARKER = "<!-- goal-agent:staleness -->";
 export const MAX_AGE_MS = 6 * 60 * 60 * 1000;
@@ -22,7 +25,7 @@ export function findLastRun(comments, agent) {
 }
 
 export function check(repo, agent, now) {
-  const states = stateIssues(repo, agent);
+  const states = readStateIssues(repo, agent);
   if (states.length > 1) throw new Error(`${states.length} State issues match ${agent}; expected one`);
   const state = states[0];
   if (state && hasHaltMarker(state.body)) return { result: "halted" };

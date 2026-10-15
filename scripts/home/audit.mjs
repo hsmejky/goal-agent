@@ -2,10 +2,13 @@
 // `memory/` and has no merged PR sets the halt marker on the State issue and opens one issue (or
 // comments on the one already open). Nothing is reverted.
 // Environment: GITHUB_REPOSITORY, GITHUB_EVENT_PATH (push payload), optional GOAL_AGENT_NAME.
-// The push payload lists at most 20 commits; the audit checks those.
+// The Actions push payload lists at most 2048 commits; the audit checks those. A larger push is
+// only partly covered (the compare API would be needed to cover it).
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { agentName, ghApi, openOrComment, setHalted, stateIssues } from "./lib.mjs";
+import { ghApi } from "../gate/github.mjs";
+import { readStateIssues } from "../guard/state-issues.mjs";
+import { agentName, openOrComment, setHalted } from "./lib.mjs";
 
 export const AUDIT_MARKER = "<!-- goal-agent:audit -->";
 const HALT_LINE = "<!-- goal-agent:halted set by the Home repo audit -->";
@@ -18,7 +21,8 @@ export function findOffences(repo, commits) {
   const offences = [];
   for (const c of commits) {
     const detail = ghApi(`repos/${repo}/commits/${c.id}`);
-    if (!(detail.files ?? []).some((f) => outsideMemory(f.filename))) continue;
+    // A rename moves content, so its source path counts too (a file renamed into memory/ came from outside it).
+    if (!(detail.files ?? []).some((f) => outsideMemory(f.filename) || (f.previous_filename && outsideMemory(f.previous_filename)))) continue;
     const prs = ghApi(`repos/${repo}/commits/${c.id}/pulls`) ?? [];
     if (prs.some(isMerged)) continue;
     offences.push({ sha: c.id, subject: String(c.message ?? "").split(/\r?\n/)[0] });
@@ -29,7 +33,7 @@ export function findOffences(repo, commits) {
 export function audit(repo, agent, commits) {
   const offences = findOffences(repo, commits);
   if (offences.length === 0) return { offences };
-  const states = stateIssues(repo, agent);
+  const states = readStateIssues(repo, agent);
   for (const s of states) setHalted(repo, s.number, HALT_LINE);
   const list = offences.map((o) => `- ${o.sha.slice(0, 12)} ${o.subject}`.trimEnd()).join("\n");
   const haltNote = states.length === 0

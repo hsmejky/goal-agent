@@ -1,5 +1,5 @@
 # Home repo audit (R50). Install in a Home repo as .github/workflows/goal-agent-audit.yml; the scripts
-# are the pinned copies of scripts/home, scripts/guard and scripts/gate from goal-agent (ADR 0006).
+# are the pinned copy of scripts/home, scripts/guard and scripts/gate from goal-agent, laid out as there (ADR 0006); the guard hooks run the same copy.
 # On every push to main: a commit outside memory/ with no merged PR sets Halted and opens one issue.
 name: Goal agent audit
 

@@ -1,26 +1,22 @@
-// Shared by the Home repo audit (R50) and staleness check (R51). REST only, through `gh api`.
-// Copied into each Home repo next to scripts/guard and scripts/gate (ADR 0006).
+// Helpers shared by the Home repo audit (R50: flag commits outside memory/ that skipped a merged PR)
+// and the staleness check (R51: flag an agent whose last run is too old). REST only, through `gh api`.
+//
+// Layout: the Home repo holds ONE pinned copy of scripts/gate, scripts/guard and scripts/home, laid
+// out exactly as in goal-agent (ADR 0006), so the relative imports resolve in both places. The
+// guard hooks run that same copy: the hook command extracts `scripts/` from origin/main.
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { ghApi, ghList } from "../gate/github.mjs";
 import { hasHaltMarker } from "../guard/halt-marker.mjs";
-import { readStateIssues } from "../guard/github.mjs";
-
-export { ghApi, ghList, hasHaltMarker };
+import { definitionName } from "../guard/identity.mjs";
 
 /** The agent name: GOAL_AGENT_NAME, else the single definition in `.claude/agents/` of `cwd`. */
 export function agentName(cwd = process.cwd(), env = process.env) {
   if (env.GOAL_AGENT_NAME) return env.GOAL_AGENT_NAME;
   let files = [];
-  try { files = readdirSync(join(cwd, ".claude", "agents")).filter((f) => f.endsWith(".md")); } catch { /* reported below */ }
-  if (files.length !== 1) throw new Error(`expected exactly one definition in .claude/agents/, found ${files.length}`);
-  const name = files[0].replace(/\.md$/, "");
-  if (!/^[a-z0-9-]+$/.test(name)) throw new Error(`invalid agent name: ${name}`);
-  return name;
+  try { files = readdirSync(join(cwd, ".claude", "agents")); } catch { /* definitionName reports the empty list */ }
+  return definitionName(files);
 }
-
-/** Open State issues of the agent in its Home repo. */
-export const stateIssues = (home, agent) => readStateIssues(home, agent);
 
 /** The open issue (not a PR) in `repo` whose body carries the hidden `marker`, or null. */
 export function findOpenMarked(repo, marker) {

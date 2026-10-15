@@ -8,9 +8,11 @@ import { fileURLToPath } from "node:url";
 import { createHarness } from "../harness/index.mjs";
 import { hookCommand, hookSettings } from "../../scripts/guard/hook-command.mjs";
 import { findHaltMarker, hasHaltMarker } from "../../scripts/guard/halt-marker.mjs";
-import { parseCoveredRepos, parseRemote } from "../../scripts/guard/identity.mjs";
+import { definitionName, parseCoveredRepos, parseRemote } from "../../scripts/guard/identity.mjs";
 
-const guardSrc = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "scripts", "guard");
+const scriptsSrc = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "scripts");
+// The Home repo holds a pinned copy of scripts/ laid out as in goal-agent; the hooks run it from origin/main.
+const installScripts = (dir) => { for (const sub of ["guard", "gate"]) cpSync(join(scriptsSrc, sub), join(dir, "scripts", sub), { recursive: true }); };
 const cleanups = [];
 after(() => cleanups.forEach((f) => f()));
 
@@ -50,7 +52,7 @@ function homeRepo({ definition = DEFINITION, files = {} } = {}) {
   git(dir, "config", "user.name", "t");
   mkdirSync(join(dir, ".claude", "agents"), { recursive: true });
   if (definition !== null) writeFileSync(join(dir, ".claude", "agents", "alpha.md"), definition);
-  cpSync(guardSrc, join(dir, ".claude", "hooks"), { recursive: true });
+  installScripts(dir);
   for (const [p, c] of Object.entries(files)) {
     mkdirSync(dirname(join(dir, p)), { recursive: true });
     writeFileSync(join(dir, p), c);
@@ -123,6 +125,13 @@ describe("Halted verdict", () => {
         stateIssue("<!-- goal-agent:halted -->\n", { number: 6 }),
       ],
     });
+    t.start();
+    denied(t.tool());
+  });
+
+  test("a halted State issue beyond the first page of open issues is still found", () => {
+    const filler = Array.from({ length: 100 }, (_, i) => stateIssue("", { number: 100 + i, title: `beta Goal agent: state ${i}` }));
+    const t = setup({ issues: [...filler, stateIssue("<!-- goal-agent:halted -->\n", { number: 300 })] });
     t.start();
     denied(t.tool());
   });
@@ -217,8 +226,8 @@ describe("origin/main is the source of truth", () => {
   test("working-tree edits to the guard and the definition have no effect", () => {
     const t = setup({ issues: [stateIssue("<!-- goal-agent:halted -->\n")] });
     // Neuter the guard on disk and rename the agent in the working-tree definition.
-    writeFileSync(join(t.repo, ".claude", "hooks", "rules.mjs"), "export const RULES = []; export const decide = () => null;\n");
-    writeFileSync(join(t.repo, ".claude", "hooks", "guard.mjs"), "process.exit(0);\n");
+    writeFileSync(join(t.repo, "scripts", "guard", "rules.mjs"), "export const RULES = []; export const decide = () => null;\n");
+    writeFileSync(join(t.repo, "scripts", "guard", "guard.mjs"), "process.exit(0);\n");
     writeFileSync(join(t.repo, ".claude", "agents", "alpha.md"), "---\nname: other\n---\n## Covered repos\n- x/y\n");
     writeFileSync(join(t.repo, ".claude", "agents", "gamma.md"), "extra\n");
     t.start();
@@ -228,7 +237,7 @@ describe("origin/main is the source of truth", () => {
   test("a working-tree edit cannot un-halt a session", () => {
     const t = setup({ issues: [stateIssue("<!-- goal-agent:halted -->\n")] });
     t.start();
-    rmSync(join(t.repo, ".claude", "hooks"), { recursive: true });
+    rmSync(join(t.repo, "scripts"), { recursive: true });
     denied(t.tool());
   });
 
@@ -237,6 +246,19 @@ describe("origin/main is the source of truth", () => {
     assert.match(s.hooks.SessionStart[0].hooks[0].command, /guard\.mjs" session-start/);
     assert.match(s.hooks.PreToolUse[0].hooks[0].command, /guard\.mjs" pre-tool-use/);
     assert.match(hookCommand("pre-tool-use"), /origin\/main/);
+  });
+});
+
+describe("definition name", () => {
+  test("is the file name of the single .md definition", () => {
+    assert.equal(definitionName([".claude/agents/alpha-2.md"]), "alpha-2");
+    assert.equal(definitionName(["alpha.md", "notes.txt"]), "alpha");
+  });
+
+  test("rejects none, several, or an invalid name", () => {
+    assert.throws(() => definitionName([], "on origin/main"), /exactly one definition.*on origin\/main.*found 0/);
+    assert.throws(() => definitionName(["a.md", "b.md"]), /found 2/);
+    assert.throws(() => definitionName(["Alpha.md"]), /invalid agent name/);
   });
 });
 
