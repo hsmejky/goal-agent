@@ -1,0 +1,33 @@
+# Home repo audit (R50). Install in a Home repo as .github/workflows/goal-agent-audit.yml; the scripts
+# are the pinned copies of scripts/home, scripts/guard and scripts/gate from goal-agent (ADR 0006).
+# On every push to main: a commit outside memory/ with no merged PR sets Halted and opens one issue.
+name: Goal agent audit
+
+on:
+  push:
+    branches: [main]
+
+# Issues are the only write. Contents and pull requests are read for commit files and associated PRs.
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+concurrency:
+  group: goal-agent-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - name: Audit the pushed commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/home/audit.mjs
