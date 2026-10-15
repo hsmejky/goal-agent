@@ -43,7 +43,7 @@ A wayfinder planning issue whose child tickets are decisions on the way to a nam
 _Avoid_: Epic, roadmap, planning issue
 
 **Goal agent contract**:
-The rules every Goal agent follows regardless of repo: how it files issues, marks its output, keeps its State issue, and what it never writes. What varies per repo (which Goal agents exist, their labels, tracker commands) is the repo's configuration, not part of the contract.
+The rules every Goal agent follows regardless of repo: how it files issues, marks its output, keeps its State issue, and what it never writes. What varies per Goal agent (its definition, Covered repos and routine) or per Covered repo (which Goal agents cover it and their labels) is configuration, not part of the contract.
 _Avoid_: Shared contract, Goal agent rules
 
 **Goal review**:
