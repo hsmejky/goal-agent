@@ -31,3 +31,8 @@ test("concurrency: one group per PR and event kind, no cancellation", () => {
 test("comment events on plain issues are skipped", () => {
   assert.match(code, /github\.event\.issue\.pull_request/);
 });
+
+test("issues trigger on labeled and unlabeled; its runs are grouped apart from pull_request_target runs", () => {
+  assert.match(code, /issues:\s*\n\s*types: \[labeled, unlabeled\]/);
+  assert.match(code, /group: goal-agent-review-.*github\.event_name/);
+});
