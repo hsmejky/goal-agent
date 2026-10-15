@@ -8,7 +8,9 @@ import { fileURLToPath } from "node:url";
 import { createHarness } from "../harness/index.mjs";
 import { hookCommand } from "../../scripts/guard/hook-command.mjs";
 
-const guardSrc = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "scripts", "guard");
+const scriptsSrc = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "scripts");
+// The Home repo holds a pinned copy of scripts/ laid out as in goal-agent; the hooks run it from origin/main.
+const installScripts = (dir) => { for (const sub of ["guard", "gate"]) cpSync(join(scriptsSrc, sub), join(dir, "scripts", sub), { recursive: true }); };
 const cleanups = [];
 after(() => cleanups.forEach((f) => f()));
 
@@ -40,7 +42,7 @@ function homeRepo() {
   writeFileSync(join(dir, ".claude", "agents", "alpha.md"), DEFINITION);
   mkdirSync(join(dir, "memory"));
   writeFileSync(join(dir, "memory", "a.md"), "x");
-  cpSync(guardSrc, join(dir, ".claude", "hooks"), { recursive: true });
+  installScripts(dir);
   git(dir, "add", "-A");
   git(dir, "commit", "-q", "-m", "init");
   git(dir, "remote", "add", "origin", "https://github.com/me/home.git");

@@ -22,7 +22,7 @@ const h = createHarness({
   curl: { reject: { status: 403, body: "nope" } },   // optional; omit for 200. `exit: 7` simulates a network error
 });
 
-const r = h.run(process.execPath, ["scripts/gate.mjs", "--pr", "3"], { env: { FOO: "1" }, input: "stdin" });
+const r = h.run(process.execPath, ["scripts/gate/gate.mjs", "--pr", "3"], { env: { FOO: "1" }, input: "stdin" });
 // r = { code, stdout, stderr }. `run` throws if the script made a call the fake refuses.
 
 h.writes.statuses;    // [{ repo, sha, state, context, description, target_url }]

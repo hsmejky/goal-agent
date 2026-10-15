@@ -6,7 +6,9 @@
 // only partly covered (the compare API would be needed to cover it).
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { agentName, ghApi, openOrComment, setHalted, stateIssues } from "./lib.mjs";
+import { ghApi } from "../gate/github.mjs";
+import { readStateIssues } from "../guard/state-issues.mjs";
+import { agentName, openOrComment, setHalted } from "./lib.mjs";
 
 export const AUDIT_MARKER = "<!-- goal-agent:audit -->";
 const HALT_LINE = "<!-- goal-agent:halted set by the Home repo audit -->";
@@ -31,7 +33,7 @@ export function findOffences(repo, commits) {
 export function audit(repo, agent, commits) {
   const offences = findOffences(repo, commits);
   if (offences.length === 0) return { offences };
-  const states = stateIssues(repo, agent);
+  const states = readStateIssues(repo, agent);
   for (const s of states) setHalted(repo, s.number, HALT_LINE);
   const list = offences.map((o) => `- ${o.sha.slice(0, 12)} ${o.subject}`.trimEnd()).join("\n");
   const haltNote = states.length === 0

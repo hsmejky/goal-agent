@@ -28,14 +28,24 @@ export function parseCoveredRepos(markdown) {
   return repos;
 }
 
+/**
+ * The agent name from the files listed in `.claude/agents/` (paths or bare file names): the single
+ * `.md` definition's name. `where` qualifies the error ("on origin/main"). Throws unless there is
+ * exactly one definition with a valid name.
+ */
+export function definitionName(files, where = "") {
+  const defs = files.filter((f) => f.endsWith(".md"));
+  if (defs.length !== 1) throw new Error(`expected exactly one definition in .claude/agents/${where ? ` ${where}` : ""}, found ${defs.length}`);
+  const name = defs[0].replace(/^.*\//, "").replace(/\.md$/, "");
+  if (!/^[a-z0-9-]+$/.test(name)) throw new Error(`invalid agent name: ${name}`);
+  return name;
+}
+
 /** { home, agent, covered } for the repo at `cwd`. Throws unless there is exactly one definition. */
 export function readIdentity(cwd) {
   const home = parseRemote(git(["remote", "get-url", "origin"], cwd));
-  const files = git(["ls-tree", "--name-only", "origin/main", ".claude/agents/"], cwd)
-    .split(/\r?\n/).filter((f) => f.endsWith(".md"));
-  if (files.length !== 1) throw new Error(`expected exactly one definition in .claude/agents/ on origin/main, found ${files.length}`);
-  const agent = files[0].replace(/^.*\//, "").replace(/\.md$/, "");
-  if (!/^[a-z0-9-]+$/.test(agent)) throw new Error(`invalid agent name: ${agent}`);
-  const covered = parseCoveredRepos(git(["show", `origin/main:${files[0]}`], cwd));
+  const files = git(["ls-tree", "--name-only", "origin/main", ".claude/agents/"], cwd).split(/\r?\n/).filter(Boolean);
+  const agent = definitionName(files, "on origin/main");
+  const covered = parseCoveredRepos(git(["show", `origin/main:${files.find((f) => f.endsWith(".md"))}`], cwd));
   return { home, agent, covered };
 }

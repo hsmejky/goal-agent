@@ -1,11 +1,12 @@
-// The hook command for the Home repo's .claude/settings.json. It extracts .claude/hooks/ from
-// origin/main (never the working tree, R45) and runs the guard from there. Any failure exits 2,
-// which blocks the tool call.
+// The hook command for the Home repo's .claude/settings.json. It extracts scripts/ (the pinned copy
+// of scripts/guard, scripts/gate and scripts/home, laid out as in goal-agent) from origin/main
+// (never the working tree, R45) and runs the guard from there. Any failure exits 2, which blocks
+// the tool call.
 export function hookCommand(mode) {
   return [
     `d=$(mktemp -d) && trap 'rm -rf "$d"' EXIT`,
-    `git archive origin/main .claude/hooks | tar -x -C "$d"`,
-    `node "$d/.claude/hooks/guard.mjs" ${mode}`,
+    `git archive origin/main scripts | tar -x -C "$d"`,
+    `node "$d/scripts/guard/guard.mjs" ${mode}`,
   ].join(" && ") + " || exit 2";
 }
 

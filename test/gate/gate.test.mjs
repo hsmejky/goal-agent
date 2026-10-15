@@ -208,6 +208,15 @@ test("a PR that cannot be read exits non-zero without a status", () => {
   assert.equal(h.writes.statuses.length, 0);
 });
 
+test("a repository name that is not a safe path never reaches the shell", () => {
+  const h = createHarness({ repos: { [REPO]: { issues: [] } } });
+  harnesses.push(h);
+  const eventPath = h.writeScript("event.json", JSON.stringify({ action: "edited", pull_request: { number: 10, head: { sha: SHA } } }));
+  const r = h.run(process.execPath, [gate], { env: { GITHUB_REPOSITORY: 'me/cov"; echo pwned #', GITHUB_EVENT_NAME: "pull_request_target", GITHUB_EVENT_PATH: eventPath } });
+  assert.notEqual(r.code, 0);
+  assert.match(r.stderr, /unsafe gh api path/);
+});
+
 test("an unsupported event exits non-zero", () => {
   const h = createHarness({ repos: { [REPO]: { issues: [] } } });
   harnesses.push(h);

@@ -124,7 +124,15 @@ export function handle(state, { method, path, query = {}, body = {} }) {
   for (const [verb, re, fn] of ROUTES) {
     if (verb !== method) continue;
     const mm = re.exec(rest);
-    if (mm) return fn(state, repo, mm, { query, body, name });
+    if (mm) {
+      const res = fn(state, repo, mm, { query, body, name });
+      if (method === "GET" && query.per_page && Array.isArray(res.body)) {
+        const size = Number(query.per_page);
+        const from = (Number(query.page ?? 1) - 1) * size;
+        return { ...res, body: res.body.slice(from, from + size) };
+      }
+      return res;
+    }
   }
   throw new Unsupported(`${method} ${path} is not implemented by the fake (add a route in test/harness/fake-github.mjs)`);
 }
