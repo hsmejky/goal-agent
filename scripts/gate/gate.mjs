@@ -4,13 +4,15 @@
 //
 // Structure (open for later tickets):
 //   targetsFromEvent()  event -> PR numbers to evaluate        (label-change events add a mapping here)
-//   evaluate()          PR -> { state, description, missing }  (the fire step reads `missing`)
+//   evaluate()          PR -> { state, description, missing }
+//   fireMissing()       fires the agents in `missing` once per head SHA (fire.mjs; record in the status description)
 //   report()            posts the status
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parseClosingRefs } from "./closing-refs.mjs";
 import { agentNames, CONTEXT, decide, latestVerdict } from "./evaluate.mjs";
 import { ghApi, ghList, GhError } from "./github.mjs";
+import { credentialsFor, fireRoutine, secretsFromEnv } from "./fire.mjs";
 
 const rest = (repo, path) => `repos/${repo}/${path}`;
 
@@ -47,6 +49,48 @@ export function evaluate(repo, pr) {
   return { agents, ...decide(agents, (name) => latestVerdict(comments, name, pr.head.sha)) };
 }
 
+// The pending description records the agents already fired for the head SHA, e.g. "... | Fired: alpha, beta".
+const FIRED = /\| Fired: ([a-z0-9, -]+)$/;
+const ACTIONS_BOT = "github-actions[bot]";
+
+/** Agents the latest status of this context on `sha` lists as fired. Only statuses posted by the Actions app count. */
+export function firedAgents(repo, sha) {
+  const latest = ghList(rest(repo, `commits/${sha}/statuses`)).find((s) => s.context === CONTEXT && s.creator?.login === ACTIONS_BOT);
+  const m = FIRED.exec(latest?.description ?? "");
+  return m ? m[1].split(",").map((n) => n.trim()).filter(Boolean) : [];
+}
+
+/** Description with the fired record appended; the base is shortened so the record always fits in 140 characters. */
+export function withFired(description, fired) {
+  if (fired.length === 0) return description.slice(0, 140);
+  const suffix = ` | Fired: ${fired.join(", ")}`;
+  return description.slice(0, Math.max(0, 140 - suffix.length)) + suffix;
+}
+
+/**
+ * Fire each missing agent that has credentials and is not yet listed as fired for this SHA. A draft fires nothing.
+ * @returns {{fired: string[], errors: string[]}} fired: everything now listed for this SHA; errors: rejected fires
+ */
+export function fireMissing(repo, pr, missing, env = process.env) {
+  const fired = firedAgents(repo, pr.head.sha);
+  const errors = [];
+  if (pr.draft) return { fired, errors };
+  const secrets = secretsFromEnv(env);
+  const url = pr.html_url ?? `https://github.com/${repo}/pull/${pr.number}`;
+  for (const name of missing) {
+    if (fired.includes(name)) continue;
+    const creds = credentialsFor(name, secrets);
+    if (!creds) continue;
+    try {
+      fireRoutine({ ...creds, text: url });
+      fired.push(name);
+    } catch (e) {
+      errors.push(`${name}: ${e.message}`);
+    }
+  }
+  return { fired, errors };
+}
+
 export function report(repo, sha, { state, description }) {
   ghApi(rest(repo, `statuses/${sha}`), { method: "POST", body: { state, context: CONTEXT, description: description.slice(0, 140) } });
 }
@@ -60,7 +104,15 @@ export function main(env = process.env) {
     try {
       const pr = ghApi(rest(repo, `pulls/${number}`));
       sha = pr.head.sha;
-      report(repo, sha, evaluate(repo, pr));
+      const result = evaluate(repo, pr);
+      const { fired, errors } = fireMissing(repo, pr, result.missing, env);
+      if (errors.length) {
+        failed = true; // fail closed: a PR stays blocked while an agent cannot be fired
+        console.error(`goal-agent-review: PR #${number}: ${errors.join("; ")}`);
+        report(repo, sha, { state: "error", description: withFired(`Goal review fire rejected for ${errors.map((x) => x.split(":")[0]).join(", ")}`, fired) });
+      } else {
+        report(repo, sha, { ...result, description: withFired(result.description, fired) });
+      }
     } catch (e) {
       failed = true;
       console.error(`goal-agent-review: PR #${number}: ${e.message}`);

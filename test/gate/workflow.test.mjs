@@ -31,3 +31,7 @@ test("concurrency: one group per PR and event kind, no cancellation", () => {
 test("comment events on plain issues are skipped", () => {
   assert.match(code, /github\.event\.issue\.pull_request/);
 });
+
+test("the fire credentials reach the script as one secrets object, and nothing from the PR is in the environment", () => {
+  assert.match(code, /GOAL_AGENT_SECRETS: \$\{\{ toJSON\(secrets\) \}\}/);
+});
