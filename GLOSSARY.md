@@ -14,6 +14,10 @@ _Avoid_: Matt's skills, Pocock skills
 One of the aims a Goal agent's definition lists in ranked order; every issue the Goal agent files serves exactly one Objective.
 _Avoid_: Priority, P-level
 
+**Non-goal**:
+Something a Goal agent's definition says it deliberately does not pursue; the agent files no issues for it, and a pull request that touches one is blocked in a Goal review.
+_Avoid_: Out of scope, exclusion, anti-goal
+
 **Order**:
 The Goal agent's recommended sequence for working its open issues, derived from Objective rank and dependencies; a recommendation the user may override, never a property of a single issue.
 _Avoid_: Priority, rank, urgency
