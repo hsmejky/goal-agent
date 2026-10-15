@@ -34,6 +34,10 @@ _Avoid_: Shared contract, Goal agent rules
 A Goal agent session that checks one pull request against the issues it closes and against the agent's Goal, ending in a pass or blocked verdict for the PR's current head commit. It does not judge coding standards; that belongs to code review.
 _Avoid_: Maintainer review, PR review, agent code review
 
+**Covered repo**:
+A repository that a Goal agent's definition lists as part of its Goal; the agent works only in its Covered repos, and one Goal may span several.
+_Avoid_: Project, scope repo, managed repo
+
 ## Goal agent state
 
 **State issue**:
