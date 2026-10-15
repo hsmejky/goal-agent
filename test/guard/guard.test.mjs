@@ -234,8 +234,8 @@ describe("origin/main is the source of truth", () => {
 
   test("the hook command is a settings block for both events", () => {
     const s = hookSettings();
-    assert.match(s.hooks.SessionStart[0].hooks[0].command, /guard\.mjs session-start/);
-    assert.match(s.hooks.PreToolUse[0].hooks[0].command, /guard\.mjs pre-tool-use/);
+    assert.match(s.hooks.SessionStart[0].hooks[0].command, /guard\.mjs" session-start/);
+    assert.match(s.hooks.PreToolUse[0].hooks[0].command, /guard\.mjs" pre-tool-use/);
     assert.match(hookCommand("pre-tool-use"), /origin\/main/);
   });
 });
