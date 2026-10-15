@@ -24,7 +24,7 @@ export function newState(seed = {}) {
       delete repo.pulls[p.number].head_sha;
       delete repo.pulls[p.number].head_ref;
     }
-    for (const c of r.commits ?? []) repo.commits[c.sha] = { pulls: c.pulls ?? [] };
+    for (const c of r.commits ?? []) repo.commits[c.sha] = { pulls: c.pulls ?? [], files: c.files ?? [] };
     for (const [sha, list] of Object.entries(r.statuses ?? {})) repo.statuses[sha] = list.map((s) => ({ id: state.nextId++, ...s }));
     state.repos[name] = repo;
   }
@@ -103,6 +103,7 @@ const ROUTES = [
   }],
   ["GET", /^pulls\/(\d+)$/, (s, repo, m) => (repo.pulls[m[1]] ? ok(asPull(repo.pulls[m[1]])) : notFound("pull"))],
   // commits
+  ["GET", /^commits\/([^/]+)$/, (s, repo, m) => (repo.commits[m[1]] ? ok({ sha: m[1], files: repo.commits[m[1]].files.map((filename) => ({ filename })) }) : notFound("commit"))],
   ["GET", /^commits\/([^/]+)\/pulls$/, (s, repo, m) => ok((repo.commits[m[1]]?.pulls ?? []).map((n) => asPull(repo.pulls[n])).filter(Boolean))],
   ["GET", /^commits\/([^/]+)\/statuses$/, (s, repo, m) => ok(repo.statuses[m[1]] ?? [])],
   ["GET", /^commits\/([^/]+)\/status$/, (s, repo, m) => ok({ sha: m[1], ...combined(repo.statuses[m[1]] ?? []) })],

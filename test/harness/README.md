@@ -47,7 +47,7 @@ Missing resources (unknown issue number) return a normal 404 and are not violati
 
 Supported REST routes (all under `repos/{owner}/{repo}/`): `issues` (GET list with `state`, `labels`; POST),
 `issues/{n}` (GET, PATCH), `issues/{n}/comments` (GET, POST), `issues/{n}/labels` (POST), `issues/{n}/labels/{name}` (DELETE),
-`pulls` (GET), `pulls/{n}` (GET), `commits/{sha}/pulls`, `commits/{sha}/statuses`, `commits/{sha}/status` (GET),
+`pulls` (GET), `pulls/{n}` (GET), `commits/{sha}` (files seeded as `files: [path]`), `commits/{sha}/pulls`, `commits/{sha}/statuses`, `commits/{sha}/status` (GET),
 `statuses/{sha}` (POST). Add routes to `ROUTES` in `fake-github.mjs` (and a test) when a script needs more.
 Supported `gh api` flags: `-X`, `-f`, `-F` (with `key[]=` arrays), `--input` (file or `-`), `-H`, `--paginate`.
 
