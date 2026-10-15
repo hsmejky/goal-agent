@@ -297,6 +297,7 @@ Evidence for every rule in this section: in `ai-plugin-manager`, the user asked 
 
 - Closing references are the tracker's own (`gh pr view <n> --json closingIssuesReferences`: `Closes`, `Fixes`, `Resolves`). A PR that only says `Part of #N` or `Refs #N` is not gated; this is an accepted limitation.
 - A PR closing issues of several Goal agents needs one Goal review from each.
+- The State issue's label `goal-agent:state` (the reserved name, [R15](#r15)) is not a Goal agent name and never requires a Goal review. Agent names are limited to `[A-Za-z0-9._-]+`, so the marker can match them.
 - Every other PR needs none.
 
 *Why:* the scope label already says which agent owns an issue ([R10](#r10)), so the gate needs no new configuration; closing references are what the tracker exposes to a workflow ([R37](#r37)), unlike prose mentions. A Goal agent has nothing to say about a PR outside its scope.
@@ -372,11 +373,13 @@ Evidence for every rule in this section: in `ai-plugin-manager`, the user asked 
 A consumer repo adopts this section to make a forgotten Goal review block the merge. It is described here, not shipped: each repo writes its own workflow. The agent never writes the workflow or the branch protection.
 
 <a id="r37"></a>
-**R37. Enforce the Goal review with a workflow that checks for the marker comment and sets the commit status `goal-agent-review` on the PR's head SHA, required by branch protection on `main` with enforcement for admins.**
+**R37. Enforce the Goal review with a workflow that checks for the marker comment and sets the commit status `goal-agent-review` on the PR's head SHA, required by branch protection on `main` with enforcement for admins and with the GitHub Actions app as the expected source.**
 
 The workflow, `.github/workflows/goal-agent-review.yml`:
 
-- **Triggers:** `pull_request` (`opened`, `synchronize`, `reopened`, `edited`) and `issue_comment` (`created`, `edited`, only when the issue is a PR). `edited` catches a changed closing reference in the PR body; `synchronize` catches a new head SHA.
+- **Triggers:** `pull_request_target` (`opened`, `synchronize`, `reopened`, `edited`), `issue_comment` (`created`, `edited`, `deleted`, only when the issue is a PR) and `issues` (`labeled`, `unlabeled`). `edited` catches a changed closing reference in the PR body; `synchronize` catches a new head SHA; a deleted comment can remove the review a `success` rested on; a label change on an issue that a PR closes can add or remove a gate, so the workflow then re-evaluates every open PR that closes that issue.
+- **Trust:** use `pull_request_target`, never `pull_request`, and check out only the default branch (or nothing); run nothing from the PR. The workflow only reads the API.
+- **Errors:** on any script error, post `state=error` for the head SHA rather than leave a previous status in place.
 - **Permissions:** `contents: read`, `pull-requests: read`, `issues: read`, `statuses: write`. Concurrency: one run per PR, the newest wins.
 - **Logic:**
   1. Query `closingIssuesReferences { number labels { name } }` (GraphQL) and collect the agent names from `goal-agent:<name>` labels.
@@ -384,15 +387,16 @@ The workflow, `.github/workflows/goal-agent-review.yml`:
   3. Otherwise, for each agent, take the latest PR comment whose `author_association` is `OWNER`, `MEMBER` or `COLLABORATOR` and whose body starts with `<!-- goal-agent-review:<name> sha=<current head SHA>`.
   4. Every agent `pass`: `success`. Any `blocked`: `failure`. Any missing: `pending`, "Run /goal-review <n>".
 - **Report:** a commit status with context `goal-agent-review` on the head SHA, not a check run: a run triggered by `issue_comment` cannot attach a check run to the PR head.
-- **Branch protection** on `main`: required status contexts `goal-agent-review` plus the repo's own tests, and enforce for admins, otherwise `gh pr merge --admin` bypasses it. The user sets it up, after the workflow works.
+- **Branch protection** on `main`: required status contexts `goal-agent-review` plus the repo's own tests, and enforce for admins, otherwise `gh pr merge --admin` bypasses it. Set the expected source of `goal-agent-review` to the GitHub Actions app, so only statuses posted by the workflow's `GITHUB_TOKEN` count. Require the status context only, never the workflow job: the job is green even when the status is pending or failure. The user sets it up, after the workflow works.
 
 Limits the adopting repo accepts:
 
 - `issue_comment` workflows run from the default branch, so the gate works only once the workflow is merged to `main`.
 - The status proves that a review was posted for this SHA by someone with write access, not that it was sound. The Goal agent posts under the user's account ([R9](#r9)), so its comments pass the author check; a marker from anyone else is ignored.
 - PRs that only say `Part of #N` or `Refs #N` are not gated ([R29](#r29)).
+- PRs already open when the gate is installed get a status only on their next event.
 
-*Why:* without enforcement the review is forgotten; in `ai-plugin-manager` the user had to ask whether it had happened. Running the agent itself in CI was rejected ([R30](#r30)); checking a marker is cheap, needs no model and no secret, and ties the verdict to the exact commit being merged.
+*Why:* without enforcement the review is forgotten; in `ai-plugin-manager` the user had to ask whether it had happened. Running the agent itself in CI was rejected ([R30](#r30)); checking a marker is cheap, needs no model and no secret, and ties the verdict to the exact commit being merged. Without an expected source, anyone with write access, the Goal agent included through the user's `gh` login, could post `goal-agent-review=success` with a plain commit-status call, and enforcement for admins does not stop that; the source restriction does. `pull_request_target` runs the workflow file from the default branch, so a PR cannot edit the workflow and post success for itself, and fork PRs get a token that can write statuses.
 *Source:* Goal review design, approved by the user on 2026-10-15 ([ADR 0001][15]); [GitHub docs: commit statuses](https://docs.github.com/en/rest/commits/statuses), [protected branches](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches).
 
 ## 12. Trial run
