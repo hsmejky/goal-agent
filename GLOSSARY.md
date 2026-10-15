@@ -79,3 +79,7 @@ _Avoid_: Watching, parked issue, backlog item
 **Halted**:
 Said of a Goal agent whose State issue carries the halt marker: every session ends at once without acting until the user clears the marker. The user or an audit of the Home repo sets it, never the agent itself.
 _Avoid_: Paused (the routine's own switch), disabled, stopped
+
+**Definition proposal**:
+A marked comment on a Goal agent's State issue suggesting a change to the agent's definition, with the evidence for it; the user makes the change or declines it, and the agent never edits its definition itself.
+_Avoid_: Calibration, self-tuning, definition change request
