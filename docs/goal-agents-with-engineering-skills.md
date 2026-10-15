@@ -95,7 +95,7 @@ R1–R37 come from the first design ([map #1][1]); R38–R61 and the edits to R1
 | Home repo `.claude/settings.json` and `.claude/hooks/` | The guard: `SessionStart` and `PreToolUse` hooks ([R45](#r45)) | User, through PRs | Claude Code |
 | Home repo workflows | The audit of `main` ([R50](#r50)) and the daily staleness check ([R51](#r51)) | User, through PRs | GitHub Actions |
 | Home repo CLAUDE.md | Pointer to the contract and the Home repo's own rules for the user's sessions there | User, through PRs | Claude Code |
-| Home repo copies of the guard, gate and Consultation scripts | The scripts the hooks and workflows run, copied by setup from the tested source in the goal-agent repo and pinned to a goal-agent commit or tag ([ADR 0006][50]) | User, through PRs | Claude Code, GitHub Actions |
+| Home repo copies of the guard, gate and Consultation scripts | The scripts the hooks and workflows run, copied by the Home repo setup steps from the tested source in the goal-agent repo and pinned to a goal-agent commit or tag, recorded in the definition's `goal-agent-pin` field ([ADR 0006][50]) | User, through PRs | Claude Code, GitHub Actions |
 | Routine (claude.ai) | Hourly schedule, API trigger, prompt naming the owner, the Covered repos and the writes ([R44](#r44), [Appendix F](#appendix-f-routine-prompt)) | User | Claude Code |
 | State issue in the Home repo (label `goal-agent:state`) | Order, Deferred items, Checkpoints, Progress, pending handoff note, halt marker ([R15](#r15)); the `Last run` comment ([R51](#r51)); Definition proposals and blocker reports as comments | Goal agent and user | Goal agent, user, the guard |
 | Home repo `memory/` | Learnings about how the agent does its own job, never naming a Covered repo ([R18](#r18)) | Goal agent | Goal agent |
@@ -210,7 +210,7 @@ The template is in [Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd-in-the
 - A missing label in a Covered repo is a blocker: the agent stops and reports ([R47](#r47)).
 - In the user's sessions, `/triage` asks whether an issue belongs to the Goal before the label goes on; issues created by `/to-spec` or `/to-tickets` inherit it from their parent ([R56](#r56)).
 
-*Why:* the Order covers every open issue in the agent's scope, user-filed ones included ([R13](#r13)); a label makes that scope deterministic and cheap to query, and the AI marker already shows origin. No Engineering skill reads the label, so it cannot disturb them. `state` is reserved (`goal-agent:state`). Creating labels is setup work in a repo the agent does not own; it belongs to the user's checklist, and the guard allows the agent no write outside `issues…` anyway ([R45](#r45)).
+*Why:* the Order covers every open issue in the agent's scope, user-filed ones included ([R13](#r13)); a label makes that scope deterministic and cheap to query, and the AI marker already shows origin. No Engineering skill reads the label, so it cannot disturb them. `state` is reserved (`goal-agent:state`). Creating labels is checklist work in a repo the agent does not own; it belongs to the user's checklist, and the guard allows the agent no write outside `issues…` anyway ([R45](#r45)).
 *Source:* [How are a Goal agent's issues marked as agent-authored?][9], as amended by [What does a generic Goal agent definition look like?][13]; [What does adding or removing a Covered repo involve?][43] (the user creates the label); [How do the user's sessions consult the agent through issues?][30].
 
 <a id="r11"></a>
@@ -352,7 +352,7 @@ The template is in [Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd-in-the
 ## 9. The Goal agent definition
 
 <a id="r25"></a>
-**R25. Keep the definition thin: the read-first gate, Goal, ranked Objectives each with a "Met when" criterion, Non-goals, `## Covered repos` ([R42](#r42)), watched sources each with a Checkpoint key, agent-specific hard limits, agent-specific session steps (work loop, "done" rule, extra start and end steps), and agent-specific Goal review checks ([R32](#r32)). Everything generic lives in the Goal agent contract.**
+**R25. Keep the definition thin: the read-first gate, Goal, ranked Objectives each with a "Met when" criterion, Non-goals, `## Covered repos` ([R42](#r42)), watched sources each with a Checkpoint key, agent-specific hard limits, agent-specific session steps (work loop, "done" rule, extra start and end steps), and agent-specific Goal review checks ([R32](#r32)), and the `goal-agent-pin` frontmatter field that records the goal-agent tag or commit the Home repo's copied scripts came from ([ADR 0006][50]). Everything generic lives in the Goal agent contract.**
 
 *Why:* sections 3–8 put every shared rule in `goal-agents.md` or `issue-tracker.md`; a definition that restated them would drift, as `plugin-maintainer`'s brief shape and P1–P4 labels did. The generic session lifecycle is the same for every Goal agent, so it is in the contract and the definition only fills in its hooks. [Appendix A](#appendix-a-definition-skeleton) is the skeleton.
 *Source:* [What does a generic Goal agent definition look like?][13]; [Which shared configuration may a Goal agent read, extend, or own?][8], as amended by [Is the shared Goal agent contract a doc, a preloaded skill, or both?][12] and [What does a generic Goal agent definition look like?][13] (session lifecycle in the contract); [How does the agent measure progress on a cross-repo Goal?][34]; [What does adding or removing a Covered repo involve?][43].
@@ -404,7 +404,7 @@ Evidence for every rule in this section: in `ai-plugin-manager`, the user asked 
 
 - A closing reference is one of GitHub's nine closing keywords (`close`, `closes`, `closed`, `fix`, `fixes`, `fixed`, `resolve`, `resolves`, `resolved`, matched case-insensitively) in the PR body followed by `#n` or `owner/repo#n`; the gate and the agent parse it by that one rule. An issue linked only from the PR sidebar, or a PR that only says `Part of #N` or `Refs #N`, is not gated; this is an accepted limitation.
 - A PR closing issues of several Goal agents needs one Goal review from each.
-- The State issue's label `goal-agent:state` (the reserved name, [R15](#r15)) is not a Goal agent name and never requires a Goal review. Agent names are limited to `[a-z0-9-]+`, so the marker can match them and the fire-token secret name maps back to one agent: it is `GOAL_AGENT_<NAME>_FIRE_TOKEN` with `<NAME>` the agent name uppercased and `-` turned into `_`, a mapping that cannot collide. Setup rejects any other name ([R59](#r59)).
+- The State issue's label `goal-agent:state` (the reserved name, [R15](#r15)) is not a Goal agent name and never requires a Goal review. Agent names are limited to `[a-z0-9-]+`, so the marker can match them and the fire-token secret name maps back to one agent: it is `GOAL_AGENT_<NAME>_FIRE_TOKEN` with `<NAME>` the agent name uppercased and `-` turned into `_`, a mapping that cannot collide. The checklist in [R59](#r59) rejects any other name.
 - Every other PR needs none.
 
 *Why:* the scope label already says which agent owns an issue ([R10](#r10)), so the gate needs no new configuration. An unattended run cannot read GraphQL's `closingIssuesReferences`, so the gate and the agent share a rule both can apply over REST. A Goal agent has nothing to say about a PR outside its scope.
@@ -473,7 +473,7 @@ Evidence for every rule in this section: in `ai-plugin-manager`, the user asked 
 
 ## 11. Goal review enforcement
 
-Each Covered repo adopts this section, so that a missing Goal review blocks the merge and also starts the review. The goal-agent repo holds the tested source of the guard, gate and Consultation scripts and their tests; setup copies them into each Home repo, pinned to a goal-agent commit or tag, and the user installs each Covered repo's workflow as part of adding the repo ([R59](#r59), [ADR 0006][50]). The design here is the specification those scripts are tested against. The agent never writes the workflow or the branch protection. The Home repo has no gate: its `main` takes only the user's PRs and the agent's memory pushes, which the audit watches ([R50](#r50)).
+Each Covered repo adopts this section, so that a missing Goal review blocks the merge and also starts the review. The goal-agent repo holds the tested source of the guard, gate and Consultation scripts and their tests; the Home repo setup steps copy them into each Home repo, pinned to a goal-agent commit or tag recorded in the definition's `goal-agent-pin` field, and the user installs each Covered repo's workflow as part of adding the repo ([R59](#r59), [ADR 0006][50]). The design here is the specification those scripts are tested against. The agent never writes the workflow or the branch protection. The Home repo has no gate: its `main` takes only the user's PRs and the agent's memory pushes, which the audit watches ([R50](#r50)). `ai-plugin-manager` has no gate today and none for `plugin-maintainer` until that agent migrates; the migration installs the full gate ([R61](#r61)).
 
 <a id="r37"></a>
 **R37. Enforce the Goal review with a gate workflow in each Covered repo that fires the agent's routine when a review is missing, checks for the marker comment, and sets the commit status `goal-agent-review` on the PR's head SHA, required by branch protection on `main` with enforcement for admins and with the GitHub Actions app as the expected source.**
@@ -519,7 +519,7 @@ Every Goal agent runs without the user: no session of the user's runs it, and no
 - Environment constraints ([cloud environments](https://code.claude.com/docs/en/cloud-environments), [settings](https://code.claude.com/docs/en/settings)):
   - Node 22 is on `PATH`, and `git`, `gh` and `jq` are pre-installed.
   - The cloud GitHub proxy rejects GraphQL-based `gh` subcommands such as `gh issue` and `gh pr`. Every script that runs inside the routine reaches GitHub only through `gh api` with REST endpoints.
-  - `curl` is not documented as pre-installed in the routine. Firing happens from GitHub Actions, where `curl` is available. If anything in the routine needs `curl`, the setup script installs it.
+  - `curl` is not documented as pre-installed in the routine. Firing happens from GitHub Actions, where `curl` is available. If anything in the routine needs `curl`, the routine environment's setup script installs it.
   - Repo hooks load only in a session with one repository, which one Home repo per agent ([ADR 0005][48]) satisfies. User-level hooks do not run in the cloud.
 
 *Why:* a cloud routine bills to the user's subscription, needs no machine, and starts fresh each time, so state lives in GitHub. GitHub Actions is one repo by default and a local scheduler needs the machine on. A multi-repo routine loads no repo hooks, which would leave every boundary in prose, so the routine is single-repo on the Home repo and attaches Covered repos itself. The auto-mode classifier passes a Covered repo write only when the user's own messages ask for it; `autoMode` settings, the routine's `auto_mode_*` fields and `permissions.allow` have no effect, so the prompt names the repos and writes, and a fire's payload arrives as a user message. Work that needs a whole tree is engineering work, which belongs to the user's sessions.
@@ -715,7 +715,7 @@ Retiring a Goal agent:
 
 1. Prerequisite: the pilot is accepted, and the contract and appendices of this document are adopted in `goal-steward-home`.
 2. Create the Home repo (for example `hsmejky/plugin-maintainer-home`), set up like any repo with the Engineering skills ([R38](#r38)).
-3. Home repo PR: the definition, rewritten from `ai-plugin-manager`'s `.claude/agents/plugin-maintainer.md` to [Appendix A](#appendix-a-definition-skeleton) (`## Covered repos` with `- hsmejky/ai-plugin-manager`, a "Met when" per Objective); `docs/agents/goal-agents.md` with the contract ([Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd-in-the-home-repo)); the Goal agent operations section ([Appendix C](#appendix-c-docsagentsissue-trackermd--goal-agent-operations-in-the-home-repo)); CLAUDE.md; the guard hooks ([R45](#r45)) and the pinned copies of the guard, gate and Consultation scripts ([ADR 0006][50]); the audit and staleness workflows ([R50](#r50), [R51](#r51)).
+3. Home repo PR: the definition, rewritten from `ai-plugin-manager`'s `.claude/agents/plugin-maintainer.md` to [Appendix A](#appendix-a-definition-skeleton) (`## Covered repos` with `- hsmejky/ai-plugin-manager`, a "Met when" per Objective); `docs/agents/goal-agents.md` with the contract ([Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd-in-the-home-repo)); the Goal agent operations section ([Appendix C](#appendix-c-docsagentsissue-trackermd--goal-agent-operations-in-the-home-repo)); CLAUDE.md; the guard hooks ([R45](#r45)) and the pinned copies of the guard, gate and Consultation scripts, with the definition's `goal-agent-pin` set to their goal-agent tag or commit ([ADR 0006][50]); the audit and staleness workflows ([R50](#r50), [R51](#r51)).
 4. Memory: copy `.claude/agent-memory/plugin-maintainer/` into the Home repo's `memory/`; move any fact about `ai-plugin-manager` itself out of memory into the definition or that repo's docs ([R18](#r18)).
 5. State issue: create it in the Home repo with `## Order` rewritten to `hsmejky/ai-plugin-manager#n` entries ([R13](#r13)), the Deferred items with their target repo, the Checkpoints as they stand, and `## Progress`; close the old State issue in `ai-plugin-manager` with a comment linking the new one.
 6. Open Findings stay in `ai-plugin-manager` with their `goal-agent:plugin-maintainer` label and triage state; nothing is moved or relabelled.
@@ -746,6 +746,8 @@ A starting point for `.claude/agents/<name>.md` in the Home repo. Angle brackets
 ```markdown
 ---
 name: <name>
+goal-agent-pin: <goal-agent tag or commit the copied guard, gate and Consultation
+  scripts came from; written by the Home repo setup steps>
 description: >
   Goal agent that owns <long-term goal> across its Covered repos. Finds <kinds
   of findings> in <watched sources> and files each one through triage; runs
