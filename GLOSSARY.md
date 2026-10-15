@@ -18,6 +18,10 @@ _Avoid_: Matt's skills, Pocock skills
 One of the aims a Goal agent's definition lists in ranked order; every issue the Goal agent files serves exactly one Objective.
 _Avoid_: Priority, P-level
 
+**Met**:
+Said of an Objective whose "met when" criterion holds, as judged by its Goal agent or set by the user; a met Objective can become open again.
+_Avoid_: Done (that is an issue's "done when"), achieved, complete
+
 **Non-goal**:
 Something a Goal agent's definition says it deliberately does not pursue; the agent files no issues for it, and a pull request that touches one is blocked in a Goal review.
 _Avoid_: Out of scope, exclusion, anti-goal
