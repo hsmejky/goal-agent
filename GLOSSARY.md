@@ -38,6 +38,10 @@ _Avoid_: Maintainer review, PR review, agent code review
 A repository that a Goal agent's definition lists as part of its Goal; the agent works only in its Covered repos, and one Goal may span several.
 _Avoid_: Project, scope repo, managed repo
 
+**Home repo**:
+The repository that holds a Goal agent's definition, State issue and memory; it is not a Covered repo by being the home, except for a single-repo Goal agent, whose Home repo is its one Covered repo.
+_Avoid_: Hub, agent repo, host repo
+
 ## Goal agent state
 
 **State issue**:
