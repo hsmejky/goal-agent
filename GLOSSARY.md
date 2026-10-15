@@ -26,6 +26,10 @@ _Avoid_: Epic, large gap, big issue
 The rules every Goal agent follows regardless of repo: how it files issues, marks its output, keeps its State issue, and what it never writes. What varies per repo (which Goal agents exist, their labels, tracker commands) is the repo's configuration, not part of the contract.
 _Avoid_: Shared contract, Goal agent rules
 
+**Goal review**:
+A Goal agent session that checks one pull request against the issues it closes and against the agent's Goal, ending in a pass or blocked verdict for the PR's current head commit. It does not judge coding standards; that belongs to code review.
+_Avoid_: Maintainer review, PR review, agent code review
+
 ## Goal agent state
 
 **State issue**:
