@@ -86,7 +86,34 @@ File an issue with `needs-triage`, `bug` and, when it is in scope, `goal-agent:<
 
 Plain conversation with Claude is fine for "how does X work?" or fixing a typo. Once the conversation turns into a decision or a change worth keeping, move it to an entry point above, so it leaves an issue or a doc behind instead of disappearing with the session.
 
-## 3. Quick choice
+## 3. The Goal agent in a triage or grilling decision
+
+Triage or grilling on an issue labelled `goal-agent:<name>` can hit a question only the Goal can answer: is this in scope, which Objective does it serve, where does it go in the Order, what counts as done. The Goal agent advises; you decide, and the skill records the decision. The agent never writes the Agent Brief, `GLOSSARY.md`, an ADR or `.out-of-scope/` ([R21](goal-agents-with-engineering-skills.md#r21)).
+
+There are two ways to bring it in.
+
+**Asynchronous: the agent filed the issue.** The agent is the reporter. Triage marks the issue `needs-info` with the question in its triage notes. The agent answers at the start of its next session, as a marked comment, without touching labels ([R7](goal-agents-with-engineering-skills.md#r7)). The next `/triage` picks the issue up again. Use this when the question is about the agent's own finding (its evidence, what it meant, why it matters) and the decision can wait.
+
+**Synchronous: any issue in scope, decision needed now.** Pause the skill and, in the same session, brief the Goal agent: `Advise on #<n>: <question>. Reply only; file nothing.` Ask it for a recommendation with its reasons, the Objective or Non-goal involved, and any effect on the Order. Then give the reply back to the skill as your input and decide. This is the only way for an issue you filed yourself, because the agent answers `needs-info` only on its own issues.
+
+What to ask it, and what not:
+
+| Ask the Goal agent | Do not ask it |
+|---|---|
+| In scope or a Non-goal? | Implementation design, technology choice |
+| Which Objective, and how much it moves it? | Coding standards (that is `code-review`'s) |
+| Position in the Order, blocking edges to its other issues | Anything that edits the definition or shared configuration |
+| "Done when" criteria it will check in the Goal review ([R32](goal-agents-with-engineering-skills.md#r32)) | |
+
+The last row matters most: when triage writes the Agent Brief with the criteria the agent will check later, the Goal review checks what the brief promised.
+
+After the decision:
+
+- An Order change from it is yours to make in the State issue's `## Order`; the agent never moves an existing entry.
+- If the decision shows the Goal itself is unclear or wrong, stop and continue with F.
+- Like the assessment brief in C, the advice brief has not been tried in a trial run.
+
+## 4. Quick choice
 
 1. Does it change the Goal, an Objective, a Non-goal or a watched source? → F.
 2. Not sure it belongs to the Goal, or whether it is worth it compared with other work? → C.
