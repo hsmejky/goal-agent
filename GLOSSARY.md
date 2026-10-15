@@ -26,8 +26,12 @@ _Avoid_: Done (that is an issue's "done when"), achieved, complete
 Something a Goal agent's definition says it deliberately does not pursue; the agent files no issues for it, and a pull request that touches one is blocked in a Goal review.
 _Avoid_: Out of scope, exclusion, anti-goal
 
+**Finding**:
+An issue a Goal agent files about a gap between its Goal and one of its Covered repos; it lives in that Covered repo's tracker and serves one Objective.
+_Avoid_: Goal agent issue, report, ticket
+
 **Order**:
-The Goal agent's recommended sequence for working its open issues, derived from Objective rank and dependencies; a recommendation the user may override, never a property of a single issue.
+The Goal agent's recommended sequence for working its open issues, derived from Objective rank and dependencies; one per Goal agent, spanning all its Covered repos. A recommendation the user may override, never a property of a single issue.
 _Avoid_: Priority, rank, urgency
 
 **Spec-sized**:
