@@ -4,6 +4,8 @@ Recommendations for making a **Goal agent** and the **Engineering skills** work 
 
 Terms in bold are defined in [`GLOSSARY.md`](../GLOSSARY.md) and used as defined there.
 
+For which entry point to use with a new idea (an issue and triage, the Goal agent, `grill-with-docs`, `wayfinder`), see [`routing-new-ideas.md`](routing-new-ideas.md).
+
 ## 1. Summary
 
 | R | Recommendation |
