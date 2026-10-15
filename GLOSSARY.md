@@ -7,7 +7,7 @@ An agent that lives in its Home repo, owns a long-term goal and works toward it 
 _Avoid_: Maintainer (one instance, not the kind), long-running agent, single-repo or cross-repo Goal agent (there is only one kind)
 
 **Goal agent session**:
-One run of a Goal agent, always started by its schedule or by a fire of its trigger, never by the user; whatever the contract says about "the next session" holds for every session alike.
+One run of a Goal agent, started by its schedule or by a fire of its trigger and in normal operation not by the user (the routine's "Run now" button is allowed; it counts as a manual sweep and goes through the same guard); whatever the contract says about "the next session" holds for every session alike.
 _Avoid_: Run, routine run, tick
 
 **Engineering skills**:
@@ -59,7 +59,7 @@ A repository that a Goal agent's definition lists as part of its Goal; the agent
 _Avoid_: Project, scope repo, managed repo
 
 **Home repo**:
-The dedicated repository, one per Goal agent, that holds the agent's definition, State issue and memory and nothing else; it is never one of the agent's Covered repos.
+The dedicated repository, one per Goal agent, that holds the agent itself: its definition, State issue and memory, and the machinery that runs and bounds it (the contract, tracker docs, hooks, workflows and CLAUDE.md). It holds no product code and is never one of the agent's Covered repos.
 _Avoid_: Hub, agent repo, host repo
 
 ## Goal agent state
