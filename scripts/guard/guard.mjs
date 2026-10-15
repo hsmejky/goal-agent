@@ -2,6 +2,7 @@
 //   guard.mjs session-start   reads the State issue(s) once and writes the session record
 //   guard.mjs pre-tool-use    reads the record and denies or allows the tool call
 // Fails closed: anything unexpected at PreToolUse denies the tool.
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { readIdentity } from "./identity.mjs";
@@ -10,13 +11,19 @@ import { hasHaltMarker } from "./halt-marker.mjs";
 import { readRecord, writeRecord } from "./session-record.mjs";
 import { decide } from "./rules.mjs";
 
+function gitRoot(cwd) {
+  const r = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" });
+  if (r.error || r.status !== 0) throw new Error("cannot find the Home repo root");
+  return r.stdout.trim();
+}
+
 /** Compute the verdict. Any error means Halted (fail closed). */
 export function computeRecord(cwd) {
   try {
     const identity = readIdentity(cwd);
     const issues = readStateIssues(identity.home, identity.agent, { cwd });
     const marked = issues.filter((i) => hasHaltMarker(i.body));
-    return { ...identity, halted: marked.length > 0, reason: marked.length ? `State issue #${marked[0].number} carries the halt marker` : undefined };
+    return { ...identity, root: gitRoot(cwd), halted: marked.length > 0, reason: marked.length ? `State issue #${marked[0].number} carries the halt marker` : undefined };
   } catch (e) {
     return { halted: true, reason: `could not read the State issue (${e.message})` };
   }
