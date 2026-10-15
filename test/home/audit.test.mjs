@@ -75,6 +75,12 @@ test("a direct non-memory commit sets the marker, keeps the body, and opens one 
   assert.doesNotMatch(h.writes.newIssues[0].body, /ok1/);
 });
 
+test("renaming a non-memory file into memory/ is an offence", () => {
+  const h = seed({ commits: [{ sha: "ren1", pulls: [], files: [{ filename: "memory/hook.mjs", previous_filename: ".claude/hooks/guard.mjs", status: "renamed" }] }] });
+  push(h, ["ren1"]);
+  assert.equal(h.writes.newIssues.length, 1);
+});
+
 test("a second offence while the audit issue is open comments instead of opening another", () => {
   const h = seed({ commits: [{ sha: "bad1", pulls: [], files: ["x"] }, { sha: "bad2", pulls: [], files: ["y"] }] });
   push(h, ["bad1"]);
