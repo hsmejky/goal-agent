@@ -191,4 +191,21 @@ describe("push rules", () => {
     commit(t.repo, ["README.md"]);
     for (const c of ["git status", "git log --oneline", "echo pushing", "git commit -m 'push it'".replace("'push it'", "x")]) allowed(t.tool(c));
   });
+
+  test("git push inside quoted text is not a push", () => {
+    const t = setup();
+    commit(t.repo, ["README.md"]);
+    for (const c of [
+      `echo "notes: do not git push here"`,
+      `grep -rn "git push" docs`,
+      `echo 'git push origin main'`,
+      `git commit -m "explain git push rules"`,
+    ]) allowed(t.tool(c));
+  });
+
+  test("a push hidden behind a shell wrapper or substitution is still judged", () => {
+    const t = setup();
+    commit(t.repo, ["README.md"]);
+    for (const c of ["bash -c 'git push --force'", `echo "$(git push --force)"`, "echo `git push --force`", "git -C . push --force"]) denied(t.tool(c));
+  });
 });
