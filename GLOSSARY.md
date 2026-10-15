@@ -63,3 +63,7 @@ _Avoid_: Last seen, cursor
 **Deferred item**:
 Something a Goal agent has found that nobody can act on until a named external trigger fires; it is filed as an issue only after the trigger fires.
 _Avoid_: Watching, parked issue, backlog item
+
+**Halted**:
+Said of a Goal agent whose State issue carries the halt marker: every session ends at once without acting until the user clears the marker. The user or an audit of the Home repo sets it, never the agent itself.
+_Avoid_: Paused (the routine's own switch), disabled, stopped
