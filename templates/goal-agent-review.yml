@@ -41,5 +41,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           # GOAL_AGENT_<NAME>_FIRE_TOKEN and GOAL_AGENT_<NAME>_TRIGGER_ID per agent; the script reads only those.
+          # toJSON(secrets) hands this step every secret of the repo, because an expression cannot upper-case an
+          # agent name. Nothing from the PR is executed here, so the risk is low; keep the repo's secrets minimal.
           GOAL_AGENT_SECRETS: ${{ toJSON(secrets) }}
         run: node .github/scripts/goal-agent-review/gate.mjs

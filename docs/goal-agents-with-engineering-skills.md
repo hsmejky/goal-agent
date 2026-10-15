@@ -670,9 +670,9 @@ The user's sessions never run a Goal agent. When a decision on an issue in the a
 
 Adding a Covered repo (it is covered once the Home repo PR is merged):
 
-1. Prerequisites in the Covered repo: check that the agent's name matches `[a-z0-9-]+` (reject any other) and differs from every Goal agent already registered there ([R57](#r57)); create the label `goal-agent:<name>`; confirm the triage docs (`docs/agents/triage-labels.md`) exist; install the Claude GitHub App; set the secret `GOAL_AGENT_<NAME>_FIRE_TOKEN` and the routine's trigger id. If the label or triage docs are missing later, the agent stops and reports ([R39](#r39)).
+1. Prerequisites in the Covered repo: check that the agent's name matches `[a-z0-9-]+` (reject any other) and differs from every Goal agent already registered there ([R57](#r57)); create the label `goal-agent:<name>`; confirm the triage docs (`docs/agents/triage-labels.md`) exist; install the Claude GitHub App; set the secrets `GOAL_AGENT_<NAME>_FIRE_TOKEN` and `GOAL_AGENT_<NAME>_TRIGGER_ID` (the routine's trigger id). If the label or triage docs are missing later, the agent stops and reports ([R39](#r39)).
 2. Home repo PR: add the repo to the definition's `## Covered repos`, with any Objective or "Met when" changes in the same PR. Then edit the routine prompt the same day ([R42](#r42)).
-3. Covered repo PR: the gate and Consultation workflows ([R37](#r37), [R54](#r54)), the agent in the `### Goal agents` block of CLAUDE.md (a new block if there is none), and the agent's row with its Home repo in `docs/agents/goal-agents.md` ([Appendix E](#appendix-e-covered-repo-files)). The gate's own PR does not fire it.
+3. Covered repo PR: the gate and Consultation workflows ([R37](#r37), [R54](#r54)) together with the scripts they run (copy `scripts/gate/*.mjs` from goal-agent to `.github/scripts/goal-agent-review/`, at the same pin as the Home repo; the workflows run that copy). Both workflows pass the whole `secrets` object to one step as `GOAL_AGENT_SECRETS`, because an expression cannot upper-case an agent name, so that step can read every secret of the repo. Nothing from the PR is executed there, which keeps the risk low, but keep the repo's secrets to those it needs. Also add the agent in the `### Goal agents` block of CLAUDE.md (a new block if there is none), and the agent's row with its Home repo in `docs/agents/goal-agents.md` ([Appendix E](#appendix-e-covered-repo-files)). The gate's own PR does not fire it.
 4. After the gate's first run on a real PR, make `goal-agent-review` a required status ([R37](#r37)).
 
 Removing a Covered repo:
@@ -1184,7 +1184,7 @@ repo. A PR whose body closes an issue labelled `goal-agent:<name>` gets a Goal
 review from that agent; the `goal-agent-review` status waits for it.
 ```
 
-Workflows: `.github/workflows/goal-agent-review.yml` ([R37](#r37)) and `.github/workflows/goal-agent-consult.yml` ([R54](#r54)); secrets per agent: `GOAL_AGENT_<NAME>_FIRE_TOKEN` and the trigger id.
+Workflows: `.github/workflows/goal-agent-review.yml` ([R37](#r37)) and `.github/workflows/goal-agent-consult.yml` ([R54](#r54)); scripts: `.github/scripts/goal-agent-review/` (the gate and Consultation scripts copied from goal-agent, pinned); secrets per agent: `GOAL_AGENT_<NAME>_FIRE_TOKEN` and `GOAL_AGENT_<NAME>_TRIGGER_ID`.
 
 ## Appendix F: Routine prompt
 
