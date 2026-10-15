@@ -195,3 +195,55 @@ test("an unsupported event exits non-zero", () => {
   const r = runGate(h, {}, "push");
   assert.notEqual(r.code, 0);
 });
+
+// --- label events (#59): a label change on an issue re-gates every open PR closing it ---
+
+function labelScenario({ pulls, issues, other = {}, action = "labeled", issue = { number: 1 } }) {
+  const prIssues = pulls.map((p) => ({ number: p.number, title: "PR" })); // a PR is also an issue (its comments live there)
+  const h = createHarness({ repos: { [REPO]: { issues: [...issues, ...prIssues], pulls }, ...other } });
+  harnesses.push(h);
+  const r = runGate(h, { action, issue }, "issues");
+  return { h, r, statuses: h.writes.statuses };
+}
+const pr = (number, body, sha = String(number).repeat(40).slice(0, 40)) => ({ number, head_sha: sha, body });
+
+test("label added: every open PR closing the issue is re-evaluated, others untouched", () => {
+  const { r, statuses } = labelScenario({
+    issues: [{ number: 1, labels: ["goal-agent:alpha"] }, { number: 2, labels: [] }],
+    pulls: [pr(10, "Closes #1"), pr(11, "fixes: me/cov#1"), pr(12, "Part of #1\nRefs #1"), pr(13, "Closes #2"), pr(14, "Closes #1", "e".repeat(40))],
+  });
+  assert.equal(r.code, 0, r.stderr);
+  assert.deepEqual(statuses.map((s) => s.sha).sort(), [pr(10).head_sha, pr(11).head_sha, "e".repeat(40)].sort());
+  for (const s of statuses) assert.equal(s.state, "pending");
+});
+
+test("label removed: PRs move back to success when no other agent gates them", () => {
+  const { statuses } = labelScenario({ action: "unlabeled", issues: [{ number: 1, labels: ["bug"] }], pulls: [pr(10, "Closes #1")] });
+  assert.equal(statuses.length, 1);
+  assert.equal(statuses[0].state, "success");
+});
+
+test("label removed while another agent still gates: stays pending", () => {
+  const { statuses } = labelScenario({ action: "unlabeled", issues: [{ number: 1, labels: ["goal-agent:beta"] }], pulls: [pr(10, "Closes #1")] });
+  assert.equal(statuses[0].state, "pending");
+});
+
+test("closed PRs are not re-gated", () => {
+  const { statuses } = labelScenario({ issues: [{ number: 1, labels: ["goal-agent:alpha"] }], pulls: [{ ...pr(10, "Closes #1"), state: "closed" }] });
+  assert.equal(statuses.length, 0);
+});
+
+test("a PR closing a same-numbered issue in another repo is not re-gated", () => {
+  const { statuses } = labelScenario({
+    issues: [{ number: 1, labels: ["goal-agent:alpha"] }],
+    pulls: [pr(10, "Closes other/repo#1")],
+    other: { "other/repo": { issues: [{ number: 1, labels: [] }] } },
+  });
+  assert.equal(statuses.length, 0);
+});
+
+test("a label event on a pull request itself gates nothing here", () => {
+  const { r, statuses } = labelScenario({ issues: [{ number: 1, labels: ["goal-agent:alpha"] }], pulls: [pr(10, "Closes #1")], issue: { number: 1, pull_request: {} } });
+  assert.equal(r.code, 0);
+  assert.equal(statuses.length, 0);
+});

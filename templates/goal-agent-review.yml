@@ -8,6 +8,9 @@ on:
     types: [opened, synchronize, reopened, edited, ready_for_review]
   issue_comment:
     types: [created, edited, deleted]
+  # A label change re-gates every open PR in this repo that closes the issue.
+  issues:
+    types: [labeled, unlabeled]
 
 permissions:
   contents: read

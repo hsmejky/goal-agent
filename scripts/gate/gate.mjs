@@ -17,12 +17,20 @@ import { credentialsFor, fireRoutine, secretsFromEnv } from "./fire.mjs";
 const rest = (repo, path) => `repos/${repo}/${path}`;
 
 /** PR numbers an event asks us to evaluate; throws on events the workflow should not deliver. */
-export function targetsFromEvent(name, payload) {
+export function targetsFromEvent(name, payload, repo) {
   if (name === "pull_request_target") {
     if (!payload.pull_request?.number) throw new Error("pull_request_target event without a pull request number");
     return [payload.pull_request.number];
   }
   if (name === "issue_comment") return payload.issue?.pull_request ? [payload.issue.number] : [];
+  if (name === "issues") {
+    const issue = payload.issue?.number;
+    if (!issue) throw new Error("issues event without an issue number");
+    if (payload.issue.pull_request) return []; // a PR's own label change arrives as a pull_request event
+    return ghList(rest(repo, "pulls?state=open"))
+      .filter((pr) => parseClosingRefs(pr.body).some((r) => r.number === issue && (r.repo ?? repo).toLowerCase() === repo.toLowerCase()))
+      .map((pr) => pr.number);
+  }
   throw new Error(`unsupported event "${name}"`);
 }
 
@@ -99,7 +107,7 @@ export function main(env = process.env) {
   const repo = env.GITHUB_REPOSITORY;
   const payload = JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, "utf8"));
   let failed = false;
-  for (const number of targetsFromEvent(env.GITHUB_EVENT_NAME, payload)) {
+  for (const number of targetsFromEvent(env.GITHUB_EVENT_NAME, payload, repo)) {
     let sha = payload.pull_request?.head?.sha; // fallback for the error status only; the verdict uses the REST head
     try {
       const pr = ghApi(rest(repo, `pulls/${number}`));
