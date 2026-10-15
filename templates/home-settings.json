@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=$(mktemp -d) && trap 'rm -rf \"$d\"' EXIT && git archive origin/main .claude/hooks | tar -x -C \"$d\" && node \"$d/.claude/hooks/guard.mjs\" session-start || exit 2"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=$(mktemp -d) && trap 'rm -rf \"$d\"' EXIT && git archive origin/main .claude/hooks | tar -x -C \"$d\" && node \"$d/.claude/hooks/guard.mjs\" pre-tool-use || exit 2"
+          }
+        ]
+      }
+    ]
+  }
+}
