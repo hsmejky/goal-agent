@@ -3,11 +3,11 @@
 ## Agents
 
 **Goal agent**:
-A subagent definition that owns a long-term goal and works toward it across many sessions, keeping its continuity in durable artifacts (files, issues) rather than in conversation memory.
-_Avoid_: Maintainer (one instance, not the kind), long-running agent
+An agent that lives in its Home repo, owns a long-term goal and works toward it unattended as a routine across many sessions, keeping its continuity in durable artifacts (files, issues) rather than in conversation memory.
+_Avoid_: Maintainer (one instance, not the kind), long-running agent, single-repo or cross-repo Goal agent (there is only one kind)
 
 **Goal agent session**:
-One run of a Goal agent, whether the user starts it or a schedule does; whatever the contract says about "the next session" holds for both alike.
+One run of a Goal agent, always started by its schedule or by a fire of its trigger, never by the user; whatever the contract says about "the next session" holds for every session alike.
 _Avoid_: Run, routine run, tick
 
 **Engineering skills**:
@@ -51,15 +51,15 @@ A Goal agent session that checks one pull request against the issues it closes a
 _Avoid_: Maintainer review, PR review, agent code review
 
 **Consultation**:
-A question the user's session asks a Goal agent about an issue in its scope, before deciding that issue's scope, Objective, place in the Order or "done when" criteria; the agent answers with a recommendation, and the user decides.
+A question the user asks a Goal agent in an issue comment about an issue in its scope, before deciding that issue's scope, Objective, place in the Order or "done when" criteria; the agent answers with a recommendation in a comment, and the user decides.
 _Avoid_: Advice brief, assessment, asking the agent
 
 **Covered repo**:
-A repository that a Goal agent's definition lists as part of its Goal; the agent works only in its Covered repos, and one Goal may span several.
+A repository that a Goal agent's definition lists as part of its Goal; the agent works only in its Covered repos, of which it has one or more.
 _Avoid_: Project, scope repo, managed repo
 
 **Home repo**:
-The repository that holds a Goal agent's definition, State issue and memory. A cross-repo Goal agent's Home repo holds nothing else and is never one of its Covered repos; a single-repo Goal agent's Home repo is its one Covered repo.
+The dedicated repository, one per Goal agent, that holds the agent's definition, State issue and memory and nothing else; it is never one of the agent's Covered repos.
 _Avoid_: Hub, agent repo, host repo
 
 ## Goal agent state
