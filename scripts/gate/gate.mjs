@@ -14,7 +14,7 @@ import { agentNames, CONTEXT, decide, latestVerdict } from "./evaluate.mjs";
 import { ghApi, ghList, GhError } from "./github.mjs";
 import { credentialsFor, fireRoutine, secretsFromEnv } from "./fire.mjs";
 
-const rest = (repo, path) => `repos/${repo}/${path}`;
+const repoPath = (repo, path) => `repos/${repo}/${path}`;
 
 /** PR numbers an event asks us to evaluate; throws on events the workflow should not deliver. */
 export function targetsFromEvent(name, payload, repo) {
@@ -27,22 +27,26 @@ export function targetsFromEvent(name, payload, repo) {
     const issue = payload.issue?.number;
     if (!issue) throw new Error("issues event without an issue number");
     if (payload.issue.pull_request) return []; // a PR's own label change arrives as a pull_request event
-    return ghList(rest(repo, "pulls?state=open"))
+    return ghList(repoPath(repo, "pulls?state=open"))
       .filter((pr) => parseClosingRefs(pr.body).some((r) => r.number === issue && (r.repo ?? repo).toLowerCase() === repo.toLowerCase()))
       .map((pr) => pr.number);
   }
   throw new Error(`unsupported event "${name}"`);
 }
 
-/** Labels of the issues the PR body closes, read in each issue's own repo. A missing issue gates nothing. */
+/**
+ * Labels of the issues the PR body closes, read in each issue's own repo. A missing issue in this
+ * repo gates nothing (a typo'd number); a cross-repo issue that cannot be read fails closed (R37).
+ */
 function closingIssueLabels(repo, body) {
   const labels = [];
   for (const ref of parseClosingRefs(body)) {
+    const sameRepo = (ref.repo ?? repo).toLowerCase() === repo.toLowerCase();
     try {
-      const issue = ghApi(rest(ref.repo ?? repo, `issues/${ref.number}`));
+      const issue = ghApi(repoPath(ref.repo ?? repo, `issues/${ref.number}`));
       labels.push(...issue.labels.map((l) => (typeof l === "string" ? l : l.name)));
     } catch (e) {
-      if (e instanceof GhError && e.status === 404) continue;
+      if (sameRepo && e instanceof GhError && e.status === 404) continue;
       throw e;
     }
   }
@@ -53,7 +57,7 @@ function closingIssueLabels(repo, body) {
 export function evaluate(repo, pr) {
   const agents = agentNames(closingIssueLabels(repo, pr.body));
   if (agents.length === 0) return { agents, ...decide([], () => null) };
-  const comments = ghList(rest(repo, `issues/${pr.number}/comments`));
+  const comments = ghList(repoPath(repo, `issues/${pr.number}/comments`));
   return { agents, ...decide(agents, (name) => latestVerdict(comments, name, pr.head.sha)) };
 }
 
@@ -63,7 +67,7 @@ const ACTIONS_BOT = "github-actions[bot]";
 
 /** Agents the latest status of this context on `sha` lists as fired. Only statuses posted by the Actions app count. */
 export function firedAgents(repo, sha) {
-  const latest = ghList(rest(repo, `commits/${sha}/statuses`)).find((s) => s.context === CONTEXT && s.creator?.login === ACTIONS_BOT);
+  const latest = ghList(repoPath(repo, `commits/${sha}/statuses`)).find((s) => s.context === CONTEXT && s.creator?.login === ACTIONS_BOT);
   const m = FIRED.exec(latest?.description ?? "");
   return m ? m[1].split(",").map((n) => n.trim()).filter(Boolean) : [];
 }
@@ -100,7 +104,7 @@ export function fireMissing(repo, pr, missing, env = process.env) {
 }
 
 export function report(repo, sha, { state, description }) {
-  ghApi(rest(repo, `statuses/${sha}`), { method: "POST", body: { state, context: CONTEXT, description: description.slice(0, 140) } });
+  ghApi(repoPath(repo, `statuses/${sha}`), { method: "POST", body: { state, context: CONTEXT, description: description.slice(0, 140) } });
 }
 
 export function main(env = process.env) {
@@ -110,7 +114,7 @@ export function main(env = process.env) {
   for (const number of targetsFromEvent(env.GITHUB_EVENT_NAME, payload, repo)) {
     let sha = payload.pull_request?.head?.sha; // fallback for the error status only; the verdict uses the REST head
     try {
-      const pr = ghApi(rest(repo, `pulls/${number}`));
+      const pr = ghApi(repoPath(repo, `pulls/${number}`));
       sha = pr.head.sha;
       const result = evaluate(repo, pr);
       const { fired, errors } = fireMissing(repo, pr, result.missing, env);
@@ -125,7 +129,10 @@ export function main(env = process.env) {
       failed = true;
       console.error(`goal-agent-review: PR #${number}: ${e.message}`);
       try {
-        if (sha) report(repo, sha, { state: "error", description: "Goal review gate error: see the workflow run" });
+        // Keep the fired record: this status replaces the latest one, and losing it would refire agents.
+        let fired = [];
+        try { if (sha) fired = firedAgents(repo, sha); } catch { /* unreadable: post the error without it */ }
+        if (sha) report(repo, sha, { state: "error", description: withFired("Goal review gate error: see the workflow run", fired) });
       } catch (e2) {
         console.error(`goal-agent-review: could not post the error status: ${e2.message}`);
       }
