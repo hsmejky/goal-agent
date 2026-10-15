@@ -40,4 +40,6 @@ jobs:
       - name: Evaluate the gate
         env:
           GH_TOKEN: ${{ github.token }}
+          # GOAL_AGENT_<NAME>_FIRE_TOKEN and GOAL_AGENT_<NAME>_TRIGGER_ID per agent; the script reads only those.
+          GOAL_AGENT_SECRETS: ${{ toJSON(secrets) }}
         run: node .github/scripts/goal-agent-review/gate.mjs

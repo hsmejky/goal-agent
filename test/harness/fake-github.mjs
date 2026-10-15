@@ -108,7 +108,7 @@ const ROUTES = [
   ["GET", /^commits\/([^/]+)\/statuses$/, (s, repo, m) => ok(repo.statuses[m[1]] ?? [])],
   ["GET", /^commits\/([^/]+)\/status$/, (s, repo, m) => ok({ sha: m[1], ...combined(repo.statuses[m[1]] ?? []) })],
   ["POST", /^statuses\/([^/]+)$/, (s, repo, m, { body, name }) => {
-    const st = { id: s.nextId++, ...body };
+    const st = { id: s.nextId++, creator: { login: "github-actions[bot]", type: "Bot" }, ...body }; // posted with the workflow token
     (repo.statuses[m[1]] ??= []).unshift(st); // newest first, as the list endpoint returns
     record(s, "status", name, { sha: m[1], ...body });
     return ok(st, 201);
