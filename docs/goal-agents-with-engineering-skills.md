@@ -603,8 +603,7 @@ Every Goal agent runs without the user: no session of the user's runs it, and no
 - A definition without `cadence` gets the 6-hour default. A `cadence` that is not an ISO 8601 duration of weeks, days, hours, minutes and seconds fails the workflow with an error naming the value; months, years, zero and fractions such as `PT1.5H` are rejected. A missing or unreadable definition file fails the workflow too.
 - The workflow finds the comment by its marker and `## Last run` heading and reads its `updated_at`, never its text.
 
-*Why:* an unattended agent that silently stops running looks the same as one with nothing to do. A comment rather than a body line keeps a write every hour out of the co-edited body ([R15](#r15)). The time comes from `date` because a session that estimates it writes a wrong one.
- The 6-hour floor keeps an hourly agent from being flagged a few minutes after each run; twice the cadence gives a slower agent one missed run of slack, where a fixed multiple such as 6 × would leave a daily agent unreported for 6 days.
+*Why:* an unattended agent that silently stops running looks the same as one with nothing to do. A comment rather than a body line keeps a write every hour out of the co-edited body ([R15](#r15)). The time comes from `date` because a session that estimates it writes a wrong one. The 6-hour floor keeps an hourly agent from being flagged a few minutes after each run; twice the cadence gives a slower agent one missed run of slack, where a fixed multiple such as 6 × would leave a daily agent unreported for 6 days.
 *Source:* [Which safeguards bound an unattended agent?][33]; [Where are findings filed, and how is one Order kept across repos?][27] (comment, not body).
 
 ## 13. Consultation
@@ -682,7 +681,32 @@ The user's sessions never run a Goal agent. When a decision on an issue in the a
 <a id="r59"></a>
 **R59. Add or remove a Covered repo, retire a Goal agent, and re-adopt a goal-agent change, by the checklists below. The user works through them, or the user's session on request; the agent does none of the steps.**
 
-Adding a Covered repo (it is covered once the Home repo PR is merged):
+**What re-adoption copies, and where it goes.** The adopted sources and their targets in a Home repo:
+
+| Source in goal-agent | Target in the Home repo |
+| --- | --- |
+| [Appendix A](#appendix-a-definition-skeleton) | the agent's definition (`.claude/agents/<name>.md`) |
+| [Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd-in-the-home-repo) | `docs/agents/goal-agents.md` § Goal agent contract |
+| [Appendix C](#appendix-c-docsagentsissue-trackermd--goal-agent-operations-in-the-home-repo) | `docs/agents/issue-tracker.md` § Goal agent operations |
+| The checklists in this requirement: every `###` section from `### Adding a Covered repo` to the end of the paragraph under `### Checking a Covered repo's gate copy for drift`; the paragraphs before `### Adding a Covered repo` are not adopted | `docs/agents/goal-agents.md` § Checklists |
+| `scripts/` | `scripts/` |
+| `templates/home-settings.json` | `.claude/settings.json` |
+| `templates/goal-agent-audit.yml`, `templates/goal-agent-staleness.yml` | `.github/workflows/` |
+
+**Substitutions.** Copying applies these and nothing else; the wording, order and numbering of the copied text stay as they are here:
+
+- `[Rn](#rn)` becomes `Rn`, a name of a requirement in the design at the pin.
+- Every other link to this document (an appendix, a section, a reference-style link to an ADR) becomes an absolute link at the pin: `https://github.com/hsmejky/goal-agent/blob/<pin>/docs/...`, with the anchor kept.
+- In Appendix A, the `goal-agent-pin` placeholder becomes the pin value, so that field has no literal text to compare. The agent-specific sections of the definition (`## Goal`, `## Objectives`, `## Non-goals`, `## Covered repos`, `## Watched sources`, `## Hard limits`, `## Session steps`, `## Goal review`) are the Home repo's own and are not compared; compare the rest of the skeleton.
+- The Home repo adds one legend paragraph to its copy of Appendix B and one to its copy of Appendix C, after the opening paragraph, giving its own values for the placeholders `<name>`, `<home>` and `<repo>`. Those paragraphs belong to the Home repo and are not compared.
+- The `## Checklists` introduction in `docs/agents/goal-agents.md` replaces this requirement's first sentence and is not compared. The checklist headings copy as they are, and so does the drift check, which is part of the adopted checklists.
+
+*Why:* every step touches the user's configuration (labels, secrets, CLAUDE.md, workflows, branch protection), which the agent never writes ([R21](#r21)); a checklist is enough, and a setup script is out of scope. Requiring the gate last, and unrequiring it first, keeps a half-installed gate from blocking merges.
+*Source:* [What does adding or removing a Covered repo involve?][43]; [How does a Goal review start without being asked?][29] ([ADR 0003][46], secrets and App); [Which pin does the shared gate copy follow when two Home repos cover one repo?][55].
+
+### Adding a Covered repo
+
+It is covered once the Home repo PR is merged.
 
 1. Prerequisites in the Covered repo: check that the agent's name matches `[a-z0-9-]+` (reject any other) and differs from every Goal agent already registered there ([R57](#r57)); create the label `goal-agent:<name>`; confirm the triage docs (`docs/agents/triage-labels.md`) exist; install the Claude GitHub App; set the secrets `GOAL_AGENT_<NAME>_FIRE_TOKEN` and `GOAL_AGENT_<NAME>_TRIGGER_ID` (the routine's trigger id). If the label or triage docs are missing later, the agent stops and reports ([R39](#r39)).
 2. Home repo PR: add the repo to the definition's `## Covered repos`, with any Objective or "Met when" changes in the same PR. Then edit the routine prompt the same day ([R42](#r42)).
@@ -690,7 +714,7 @@ Adding a Covered repo (it is covered once the Home repo PR is merged):
 4. Create a repo Actions event policy (Settings → Actions → Policies, or `POST /repos/{owner}/{repo}/actions/policies`) that allows `pull_request_target`, `issue_comment` and `issues` for `.github/workflows/goal-agent-review.yml`: GitHub's default policy blocks `pull_request_target` in public repos (enforced from 2026-11-02). Once per repo; a further agent needs no new policy.
 5. After the gate's first run on a real PR, make `goal-agent-review` a required status ([R37](#r37)).
 
-Removing a Covered repo:
+### Removing a Covered repo
 
 1. Only if no other Goal agent covers the repo, remove `goal-agent-review` from the required statuses, so open PRs are not left blocked; otherwise it stays required, so the remaining agents stay gated.
 2. Covered repo PR: remove the agent from the `### Goal agents` block and its registry row, and its secret pair from the step `env` of both workflows. If no other Goal agent covers the repo, remove both workflows and the script copy as well. Otherwise leave the copy as it is: it stays at the pin the remaining Home repos share, and the removed Home repo's pin no longer constrains it.
@@ -698,24 +722,26 @@ Removing a Covered repo:
 4. Home repo PR: remove the repo from `## Covered repos`, and rewrite or delete any Objective or "Met when" that names it. Then edit the routine prompt. The definition change makes the agent re-judge every Objective ([R41](#r41)); it drops the repo's Order entries with a marked comment ([R13](#r13)).
 5. Delete the fire-token secret, the trigger id and the label, and the Actions event policy if no other Goal agent covers the repo. Open Findings stay as ordinary issues under that repo's triage; the agent writes nothing more to them. The Claude GitHub App stays.
 
-Retiring a Goal agent:
+### Retiring a Goal agent
 
 1. Run the removal checklist for every Covered repo.
 2. Disable the routine.
 3. Close the State issue with a marked comment.
 4. Archive the Home repo.
 
-Re-adopting a goal-agent change (a change to the adopted text or to `scripts/`):
+### Re-adopting a goal-agent change
 
-1. In goal-agent, diff the adopted text (Appendices A-C and the R59 checklists) and `scripts/` from the Home repo's current `goal-agent-pin` to the new tag or commit.
-2. Home repo PR: apply the differences, that is, recopy the changed scripts and update the adopted text, and set `goal-agent-pin` to the new tag or commit in the same PR. A text-only change bumps the pin too.
+A change to the adopted text or to `scripts/` or `templates/`.
+
+1. In goal-agent, diff the sources listed in the table above, under "What re-adoption copies, and where it goes", from the Home repo's current `goal-agent-pin` to the new tag or commit.
+2. Home repo PR: apply the differences, that is, recopy the changed scripts and templates and update the adopted text, and set `goal-agent-pin` to the new tag or commit in the same PR. A text-only change bumps the pin too.
 3. Home repo PRs: as in step 2, one in every Home repo that shares a Covered repo with this one, all setting the same new pin. Find the other Home repos in each Covered repo's `docs/agents/goal-agents.md` registry; this Home repo's Covered repos are in its definition's `## Covered repos`.
 4. Covered repo PR, only if a file under `scripts/gate/` differs between the old and the new pin: recopy the changed files, so the copy is byte-identical to `scripts/gate/*.mjs` at the new pin. A bump that changes nothing there needs none. Merge the PRs from steps 3 and 4 in one sitting, so the copy does not stay under a Home repo whose pin differs from it in a gate file.
 
-Checking a Covered repo's gate copy for drift: diff `.github/scripts/goal-agent-review/` against `scripts/gate/*.mjs` at the shared pin, read from the `goal-agent-pin` in each registered Home repo's definition ([Appendix A](#appendix-a-definition-skeleton)); differing pins or a differing copy is drift ([ADR 0006][50], amendment).
+### Checking a Covered repo's gate copy for drift
 
-*Why:* every step touches the user's configuration (labels, secrets, CLAUDE.md, workflows, branch protection), which the agent never writes ([R21](#r21)); a checklist is enough, and a setup script is out of scope. Requiring the gate last, and unrequiring it first, keeps a half-installed gate from blocking merges.
-*Source:* [What does adding or removing a Covered repo involve?][43]; [How does a Goal review start without being asked?][29] ([ADR 0003][46], secrets and App); [Which pin does the shared gate copy follow when two Home repos cover one repo?][55].
+Diff `.github/scripts/goal-agent-review/` against `scripts/gate/*.mjs` at the shared pin, read from the `goal-agent-pin` in each registered Home repo's definition ([Appendix A](#appendix-a-definition-skeleton)); differing pins or a differing copy is drift ([ADR 0006][50], amendment).
+
 
 ## 16. Pilot and migration
 
@@ -744,8 +770,8 @@ Checking a Covered repo's gate copy for drift: diff `.github/scripts/goal-agent-
 5. State issue: create it in the Home repo with `## Order` rewritten to `hsmejky/ai-plugin-manager#n` entries ([R13](#r13)), the Deferred items with their target repo, the Checkpoints as they stand, and `## Progress`; close the old State issue in `ai-plugin-manager` with a comment linking the new one.
 6. Open Findings stay in `ai-plugin-manager` with their `goal-agent:plugin-maintainer` label and triage state; nothing is moved or relabelled.
 7. Create the routine ([R44](#r44), [Appendix F](#appendix-f-routine-prompt)), disabled for now, and set its fire token and trigger id as secrets in `ai-plugin-manager`; check the Claude GitHub App is installed on both the Home repo and `ai-plugin-manager`.
-8. `ai-plugin-manager` PR: the repo already has `goal-agent-review.yml` ([R37](#r37)) and `goal-agent-consult.yml` ([R54](#r54)) for `goal-steward`, and the gate scripts' copy in `.github/scripts/goal-agent-review/`, which is not reinstalled; add the `GOAL_AGENT_PLUGIN_MAINTAINER_FIRE_TOKEN` / `GOAL_AGENT_PLUGIN_MAINTAINER_TRIGGER_ID` pair to the step `env` of both workflows ([R59](#r59) step 3); put `plugin-maintainer` in the `### Goal agents` block with the inline Consultation rule ([R56](#r56)); reduce `docs/agents/goal-agents.md` to the registry, with the Home repo in the agent's row ([R22](#r22)); remove the Goal agent operations section from `docs/agents/issue-tracker.md`, `.claude/agents/plugin-maintainer.md`, `.claude/agent-memory/plugin-maintainer/` and any `/goal-review` skill.
-9. Enable the routine once that PR is merged. Check the first `Last run` comment, and that the next gated PR gets its Goal review from a fire. `goal-agent-review` stays (or becomes) a required status ([R59](#r59) step 5).
+8. `ai-plugin-manager` PR: the repo already has `goal-agent-review.yml` ([R37](#r37)) and `goal-agent-consult.yml` ([R54](#r54)) for `goal-steward`, and the gate scripts' copy in `.github/scripts/goal-agent-review/`, which is not reinstalled; add the `GOAL_AGENT_PLUGIN_MAINTAINER_FIRE_TOKEN` / `GOAL_AGENT_PLUGIN_MAINTAINER_TRIGGER_ID` pair to the step `env` of both workflows ([R59](#r59) Adding a Covered repo, step 3); put `plugin-maintainer` in the `### Goal agents` block with the inline Consultation rule ([R56](#r56)); reduce `docs/agents/goal-agents.md` to the registry, with the Home repo in the agent's row ([R22](#r22)); remove the Goal agent operations section from `docs/agents/issue-tracker.md`, `.claude/agents/plugin-maintainer.md`, `.claude/agent-memory/plugin-maintainer/` and any `/goal-review` skill.
+9. Enable the routine once that PR is merged. Check the first `Last run` comment, and that the next gated PR gets its Goal review from a fire. `goal-agent-review` stays (or becomes) a required status ([R59](#r59) Adding a Covered repo, step 5).
 
 *Why:* moving one live agent before the design has run once would risk the agent the user relies on most; after the pilot, the same steps that add a Covered repo move it. Findings belong to the repo they concern ([R39](#r39)), so only the agent's own files and state move.
 *Source:* [Should every Goal agent run in cross-repo mode?][44] ([ADR 0005][48]); [What does adding or removing a Covered repo involve?][43].
