@@ -14,7 +14,7 @@ A Covered repo keeps two thin callers (gate and Consultation). A Home repo keeps
 
 Values handed to an action, as `with:` inputs or as the calling step's `env`, are visible to every step inside the action, and any other step in the caller job would run alongside them. The action therefore does its own checkout of the caller repo (default branch, `persist-credentials: false`, nothing from the PR) and its own Node setup. Its internal steps are goal-agent code plus third-party actions pinned by full SHA and reviewed in goal-agent.
 
-Secrets go by explicit name: the calling step's `env` names each agent's `GOAL_AGENT_<NAME>_FIRE_TOKEN` and `GOAL_AGENT_<NAME>_TRIGGER_ID`, one pair per installed agent. GitHub does not document that a calling step's `env` reaches the steps inside a composite action, so [#112][i112] tests it on a live run. If it does not, the pairs go as declared `with:` inputs that the action maps to `env` on its script step only. Never `secrets: inherit` or `toJSON(secrets)`.
+Secrets go by explicit name: the calling step's `env` names each agent's `GOAL_AGENT_<NAME>_FIRE_TOKEN` and `GOAL_AGENT_<NAME>_TRIGGER_ID`, one pair per installed agent. GitHub does not document that a calling step's `env` reaches the steps inside a composite action, so [#112][i112] tested it on a live run ([run 38973718004][envrun]): the secret pair and a plain value named in the calling step's `env` reached the action's script step with the same length and SHA-256 as the same secrets read directly, merged with the script step's own `env` (`GH_TOKEN`). The pairs therefore stay in the calling step's `env`, with no declared inputs. Never `secrets: inherit` or `toJSON(secrets)`.
 
 Trust ([R37][r37]) is unchanged: `pull_request_target` runs the caller from the default branch, and the action is fetched at the immutable SHA in that caller and runs nothing from the PR. The audit and staleness actions take no secrets; they use the job's `GITHUB_TOKEN` (`github.token`), with the permissions the caller job grants.
 
@@ -53,6 +53,7 @@ The caller files are rendered, not hand-copied. `templates/` at the pin holds th
 - The caller templates, [R59][r59]'s checklists, [R25][r25], [R38][r38], [Appendix D][appd] and [Appendix E][design] change to describe this setup in the tickets that build it. ADRs 0001-0005 and 0007 stay as written; ADR 0007's guard fix still reaches a Home repo by recopying the guard at a new pin.
 
 [ctx]: https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#job-context
+[envrun]: https://github.com/hsmejky/goal-agent/actions/runs/38973718004
 [reuse]: https://docs.github.com/en/actions/reference/workflows-and-actions/reusing-workflow-configurations
 [adr6]: 0006-goal-agent-scripts-are-tested-here-and-copied-pinned-into-each-home-repo.md
 [design]: ../goal-agents-with-engineering-skills.md#appendix-e-covered-repo-files
