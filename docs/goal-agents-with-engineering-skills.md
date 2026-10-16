@@ -1140,6 +1140,7 @@ For readers of the decision tickets: these decisions were amended by later ticke
 | [How does the routing guide brief a cross-repo Goal agent?][42]: Consultation in session for single-repo agents, on the issue for cross-repo ones. | Consultation is always on the issue ([R58](#r58)). | [Should every Goal agent run in cross-repo mode?][44] |
 | [Should a Goal agent file flat issues or a spec with sliced tickets?][10]: slices are not labelled and stay out of the agent's scope. | The session gives slices the spec's label so their PRs are gated; slices still never enter the Order ([R4](#r4), [R13](#r13)). | [How do the user's sessions consult the agent through issues?][30], [Where do wayfinder maps in Covered repos sit in the Order?][31] |
 | [ADR 0003][46], opening paragraph: "a closing reference is a `Closes`, `Fixes` or `Resolves` keyword in the PR body (including `owner/repo#n`)". | One of GitHub's nine closing keywords, matched case-insensitively, followed by an optional colon and then `#n` or `owner/repo#n` ([R29](#r29)). | [Run Goal agents as guarded routines on a Home repo, with gate-fired Goal reviews and Consultations, piloted with goal-steward][52] |
+| [ADR 0002][45], opening paragraph: memory in `.claude/agent-memory/<name>/`. | Plain files in the Home repo's `memory/` ([R18](#r18)). | [ADR 0002 still names .claude/agent-memory/<name>/ as memory; R18 and the guard use memory/][53] |
 
 ## Appendix E: Covered repo files
 
@@ -1268,3 +1269,4 @@ sweep.
 [50]: adr/0006-goal-agent-scripts-are-tested-here-and-copied-pinned-into-each-home-repo.md
 [51]: adr/0007-the-guard-restricts-cloud-sessions-only.md
 [52]: https://github.com/hsmejky/goal-agent/issues/54
+[53]: https://github.com/hsmejky/goal-agent/issues/82

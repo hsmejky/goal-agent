@@ -1,10 +1,10 @@
 ---
-status: accepted
+status: accepted, amended by R18
 ---
 
 # A cross-repo Goal agent lives in a dedicated Home repo
 
-A Goal agent whose Goal spans several Covered repos keeps its definition (`.claude/agents/<name>.md`), its State issue and its memory (`.claude/agent-memory/<name>/`) in a dedicated Home repo, one per agent, that is not itself a Covered repo. The Home repo is set up like any repo with the Engineering skills and is the only source of the contract the agent follows. The agent runs unattended as a cloud routine that attaches the Home repo and every Covered repo. The routine's prompt is only a pointer: read the definition and the contract it links, act as that agent, and push memory to the Home repo's `main`. We chose a dedicated repo because it favours no Covered repo, keeps the agent's State issue and memory commits out of their trackers and history, and does not move when a Covered repo is added or removed.
+A Goal agent whose Goal spans several Covered repos keeps its definition (`.claude/agents/<name>.md`), its State issue and its memory (`.claude/agent-memory/<name>/`; amended, see [Amendments](#amendments)) in a dedicated Home repo, one per agent, that is not itself a Covered repo. The Home repo is set up like any repo with the Engineering skills and is the only source of the contract the agent follows. The agent runs unattended as a cloud routine that attaches the Home repo and every Covered repo. The routine's prompt is only a pointer: read the definition and the contract it links, act as that agent, and push memory to the Home repo's `main`. We chose a dedicated repo because it favours no Covered repo, keeps the agent's State issue and memory commits out of their trackers and history, and does not move when a Covered repo is added or removed.
 
 ## Considered Options
 
@@ -19,3 +19,10 @@ A Goal agent whose Goal spans several Covered repos keeps its definition (`.clau
 - Memory holds only lessons that apply across the Goal and never names a Covered repo, so adding or removing a Covered repo never makes it stale. Facts about one repo live in the definition's Covered repo list, the State issue, or that repo's own docs.
 - In cloud sessions `gh issue` and `gh pr` fail (GraphQL is blocked); tracker operations use `gh api` REST, and only attached repos are reachable.
 - A user session opened in the Home repo can still spawn the agent as an ordinary subagent.
+
+## Amendments
+
+- **Memory path, amended by [R18][r18] (issue [#82][i82]).** The agent's memory is plain files in the Home repo's `memory/`. This replaces `.claude/agent-memory/<name>/` named above.
+
+[r18]: ../goal-agents-with-engineering-skills.md#r18
+[i82]: https://github.com/hsmejky/goal-agent/issues/82
