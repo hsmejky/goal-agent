@@ -320,7 +320,7 @@ The template is in [Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd-in-the
 
 - A Covered repo's files are fetched by path through `gh api` ([R44](#r44)); the Home repo's are read from its clone.
 
-*Why:* the agent files issues in each Covered repo under that repo's labels and terms, so it needs them there; ADRs and rejections matter only for the area at hand. The contract and tracker commands are the agent's own and live once, in the Home repo. `docs/agents/domain.md` says where the glossary and ADRs live.
+*Why:* the agent files issues in each Covered repo under that repo's labels and terms, and reviews PRs and answers Consultations in those terms, so it needs them there; ADRs and rejections matter only for the area at hand. The contract and tracker commands are the agent's own and live once, in the Home repo. `docs/agents/domain.md` says where the glossary and ADRs live.
 *Source:* [Which shared configuration may a Goal agent read, extend, or own?][8]; [Is the shared Goal agent contract a doc, a preloaded skill, or both?][12]; [Where does a cross-repo Goal agent live?][26]; [Where are findings filed, and how is one Order kept across repos?][27]; `docs/agents/domain.md`.
 
 <a id="r21"></a>
