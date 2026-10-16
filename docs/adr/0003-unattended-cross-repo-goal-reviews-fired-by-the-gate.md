@@ -1,11 +1,10 @@
 ---
-status: accepted, amended
-amended-by: R29 in docs/goal-agents-with-engineering-skills.md
+status: accepted, amended by R29
 ---
 
 # Unattended cross-repo Goal reviews, fired by the gate
 
-A cross-repo Goal agent runs its Goal reviews itself, in its unattended cloud routine, instead of in the user's session as ADR 0001 has it for single-repo agents. The `goal-agent-review` gate workflow in each Covered repo, which already runs on every event that can make a PR gated, fires the routine's API trigger with the PR URL when a review for that agent is missing on the current head SHA, once per head SHA and agent; the routine's hourly scheduled run sweeps every Covered repo for gated PRs without a review as a backstop. In these Covered repos a closing reference is a `Closes`, `Fixes` or `Resolves` keyword in the PR body (including `owner/repo#n`), and the gate and the agent parse it by that one rule. We chose this because a review must start without being asked, for every PR however it was opened, and an unattended run cannot read GraphQL's `closingIssuesReferences`.
+A cross-repo Goal agent runs its Goal reviews itself, in its unattended cloud routine, instead of in the user's session as ADR 0001 has it for single-repo agents. The `goal-agent-review` gate workflow in each Covered repo, which already runs on every event that can make a PR gated, fires the routine's API trigger with the PR URL when a review for that agent is missing on the current head SHA, once per head SHA and agent; the routine's hourly scheduled run sweeps every Covered repo for gated PRs without a review as a backstop. In these Covered repos a closing reference is a `Closes`, `Fixes` or `Resolves` keyword in the PR body (including `owner/repo#n`; amended, see [Amendments](#amendments)), and the gate and the agent parse it by that one rule. We chose this because a review must start without being asked, for every PR however it was opened, and an unattended run cannot read GraphQL's `closingIssuesReferences`.
 
 ## Considered Options
 
@@ -27,7 +26,7 @@ A cross-repo Goal agent runs its Goal reviews itself, in its unattended cloud ro
 
 ## Amendments
 
-- **Closing-reference rule, amended by [R29][r29] (issue [#54][i54]).** A closing reference is one of GitHub's nine closing keywords (`close`, `closes`, `closed`, `fix`, `fixes`, `fixed`, `resolve`, `resolves`, `resolved`), matched case-insensitively, with an optional colon, followed by `#n` or `owner/repo#n`. This replaces the three keywords named above. It matches GitHub's own closing behaviour: anything that closes the issue on merge also gates the PR. For example, `fixed #3` and `fixes: owner/repo#3` gate.
+- **Closing-reference rule, amended by [R29][r29] (issue [#54][i54]).** A closing reference is one of GitHub's nine closing keywords (`close`, `closes`, `closed`, `fix`, `fixes`, `fixed`, `resolve`, `resolves`, `resolved`), matched case-insensitively, followed by an optional colon and then `#n` or `owner/repo#n`. This replaces the three keywords named above. It matches GitHub's own closing behaviour: anything that closes the issue on merge also gates the PR. For example, `fixed #3` and `fixes: owner/repo#3` gate.
 
 [r29]: ../goal-agents-with-engineering-skills.md#r29
 [i54]: https://github.com/hsmejky/goal-agent/issues/54
