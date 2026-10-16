@@ -402,7 +402,7 @@ Evidence for every rule in this section: in `ai-plugin-manager`, the user asked 
 <a id="r29"></a>
 **R29. Require a Goal review for every PR whose closing references include an issue labelled `goal-agent:<name>`; that label names the reviewing agent.**
 
-- A closing reference is one of GitHub's nine closing keywords (`close`, `closes`, `closed`, `fix`, `fixes`, `fixed`, `resolve`, `resolves`, `resolved`, matched case-insensitively) in the PR body followed by `#n` or `owner/repo#n`; the gate and the agent parse it by that one rule. An issue linked only from the PR sidebar, or a PR that only says `Part of #N` or `Refs #N`, is not gated; this is an accepted limitation.
+- A closing reference is one of GitHub's nine closing keywords (`close`, `closes`, `closed`, `fix`, `fixes`, `fixed`, `resolve`, `resolves`, `resolved`, matched case-insensitively) in the PR body followed by an optional colon and then `#n` or `owner/repo#n`; the gate and the agent parse it by that one rule. An issue linked only from the PR sidebar, or a PR that only says `Part of #N` or `Refs #N`, is not gated; this is an accepted limitation.
 - A PR closing issues of several Goal agents needs one Goal review from each.
 - The State issue's label `goal-agent:state` (the reserved name, [R15](#r15)) is not a Goal agent name and never requires a Goal review. Agent names are limited to `[a-z0-9-]+`, so the marker can match them and the fire-token secret name maps back to one agent: it is `GOAL_AGENT_<NAME>_FIRE_TOKEN` with `<NAME>` the agent name uppercased and `-` turned into `_`, a mapping that cannot collide. The checklist in [R59](#r59) rejects any other name.
 - Every other PR needs none.
@@ -1012,7 +1012,7 @@ End:
 ### Goal review session
 
 A PR whose body closes (one of GitHub's nine closing keywords: close, closes, closed, fix, fixes,
-fixed, resolve, resolves, resolved, followed by `#n` or `owner/repo#n`) an issue labelled `goal-agent:<name>` needs a Goal review by
+fixed, resolve, resolves, resolved, matched case-insensitively, followed by an optional colon and then `#n` or `owner/repo#n`) an issue labelled `goal-agent:<name>` needs a Goal review by
 that agent before merge. `Part of #N`, `Refs #N` and sidebar links do not count.
 
 1. Re-check over REST: the PR is in a Covered repo, not a draft, and gated for
@@ -1137,6 +1137,7 @@ For readers of the decision tickets: these decisions were amended by later ticke
 | [Which repos and Goal does the pilot cross-repo Goal agent cover?][41]: Health includes Checkpoint lag for session-run agents. | Health checks only `Last run` staleness ([R60](#r60)). | [Should every Goal agent run in cross-repo mode?][44] |
 | [How does the routing guide brief a cross-repo Goal agent?][42]: Consultation in session for single-repo agents, on the issue for cross-repo ones. | Consultation is always on the issue ([R58](#r58)). | [Should every Goal agent run in cross-repo mode?][44] |
 | [Should a Goal agent file flat issues or a spec with sliced tickets?][10]: slices are not labelled and stay out of the agent's scope. | The session gives slices the spec's label so their PRs are gated; slices still never enter the Order ([R4](#r4), [R13](#r13)). | [How do the user's sessions consult the agent through issues?][30], [Where do wayfinder maps in Covered repos sit in the Order?][31] |
+| [ADR 0003][46], opening paragraph: "a closing reference is a `Closes`, `Fixes` or `Resolves` keyword in the PR body (including `owner/repo#n`)". | One of GitHub's nine closing keywords, matched case-insensitively, followed by an optional colon and then `#n` or `owner/repo#n` ([R29](#r29)). | [Run Goal agents as guarded routines on a Home repo, with gate-fired Goal reviews and Consultations, piloted with goal-steward][52] |
 
 ## Appendix E: Covered repo files
 
@@ -1264,3 +1265,4 @@ sweep.
 [49]: https://github.com/hsmejky/goal-agent/pull/19
 [50]: adr/0006-goal-agent-scripts-are-tested-here-and-copied-pinned-into-each-home-repo.md
 [51]: adr/0007-the-guard-restricts-cloud-sessions-only.md
+[52]: https://github.com/hsmejky/goal-agent/issues/54
