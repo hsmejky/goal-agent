@@ -352,7 +352,7 @@ The template is in [Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd-in-the
 ## 9. The Goal agent definition
 
 <a id="r25"></a>
-**R25. Keep the definition thin: the read-first gate, Goal, ranked Objectives each with a "Met when" criterion, Non-goals, `## Covered repos` ([R42](#r42)), watched sources each with a Checkpoint key, agent-specific hard limits, agent-specific session steps (work loop, "done" rule, extra start and end steps), and agent-specific Goal review checks ([R32](#r32)), and the `goal-agent-pin` frontmatter field that records the goal-agent tag or commit the Home repo's copied scripts came from ([ADR 0006][50]). Everything generic lives in the Goal agent contract.**
+**R25. Keep the definition thin: the read-first gate, Goal, ranked Objectives each with a "Met when" criterion, Non-goals, `## Covered repos` ([R42](#r42)), watched sources each with a Checkpoint key, agent-specific hard limits, agent-specific session steps (work loop, "done" rule, extra start and end steps), and agent-specific Goal review checks ([R32](#r32)), the `goal-agent-pin` frontmatter field that records the goal-agent tag or commit the Home repo's copied scripts came from ([ADR 0006][50]), and the `cadence` frontmatter field ([R51](#r51)). Everything generic lives in the Goal agent contract.**
 
 *Why:* sections 3–8 put every shared rule in `goal-agents.md` or `issue-tracker.md`; a definition that restated them would drift, as `plugin-maintainer`'s brief shape and P1–P4 labels did. The generic session lifecycle is the same for every Goal agent, so it is in the contract and the definition only fills in its hooks. [Appendix A](#appendix-a-definition-skeleton) is the skeleton.
 *Source:* [What does a generic Goal agent definition look like?][13]; [Which shared configuration may a Goal agent read, extend, or own?][8], as amended by [Is the shared Goal agent contract a doc, a preloaded skill, or both?][12] and [What does a generic Goal agent definition look like?][13] (session lifecycle in the contract); [How does the agent measure progress on a cross-repo Goal?][34]; [What does adding or removing a Covered repo involve?][43].
@@ -593,9 +593,13 @@ Every Goal agent runs without the user: no session of the user's runs it, and no
 *Source:* [Which routine shape runs the cross-repo Goal agent?][38] ([ADR 0004][47]), amending [Which safeguards bound an unattended agent?][33].
 
 <a id="r51"></a>
-**R51. Keep one marked `Last run` comment on the State issue, edited in place by every session that is not Halted: time, issues filed, comments posted, quick exit yes or no. A daily scheduled workflow in the Home repo opens one issue when that comment is older than 6 hours, unless the agent is Halted.**
+**R51. Keep one marked `Last run` comment on the State issue, edited in place by every session that is not Halted: the marker, then a `## Last run` heading, then the time, issues filed, comments posted, quick exit yes or no. The time comes from `date -u +%Y-%m-%dT%H:%MZ`, run in that session, and is never estimated. A daily scheduled workflow in the Home repo opens one issue when that comment was last updated more than `max(6 h, 2 × cadence)` ago, unless the agent is Halted.**
 
-*Why:* an unattended agent that silently stops running looks the same as one with nothing to do. A comment rather than a body line keeps a write every hour out of the co-edited body ([R15](#r15)).
+- `cadence` is a front matter field of the agent's definition: an ISO 8601 duration, for example `PT1H` ([Appendix A](#appendix-a-definition-skeleton)). The threshold `max(6 h, 2 × cadence)` is stated here only; [R60](#r60) Health and the contract's health rule use it, never the raw `cadence`.
+- A definition without `cadence` gets the 6-hour default. A `cadence` that is not an ISO 8601 duration of weeks, days, hours, minutes and seconds fails the workflow with an error naming the value; months, years, zero and fractions such as `PT1.5H` are rejected. A missing or unreadable definition file fails the workflow too.
+- The workflow finds the comment by its marker and `## Last run` heading and reads its `updated_at`, never its text.
+
+*Why:* an unattended agent that silently stops running looks the same as one with nothing to do. A comment rather than a body line keeps a write every hour out of the co-edited body ([R15](#r15)). The time comes from `date` because a session that estimates it writes a wrong one. The 6-hour floor keeps an hourly agent from being flagged a few minutes after each run; twice the cadence gives a slower agent one missed run of slack, where a fixed multiple such as 6 × would leave a daily agent unreported for 6 days.
 *Source:* [Which safeguards bound an unattended agent?][33]; [Where are findings filed, and how is one Order kept across repos?][27] (comment, not body).
 
 ## 13. Consultation
@@ -705,7 +709,7 @@ Retiring a Goal agent:
 
 - Goal: "Goal agents in hsmejky's repos run correctly and usefully on current Claude Code, and their design, contract and docs stay consistent and improve from evidence."
 - Objectives, ranked:
-  1. **Health.** Every Goal agent registered in a Covered repo keeps up. *Met when* its latest `Last run` is within its cadence and no stop-and-report blocker older than 7 days lacks an issue. `goal-steward` does not monitor itself; its own staleness check covers that ([R51](#r51)).
+  1. **Health.** Every Goal agent registered in a Covered repo keeps up. *Met when* its latest `Last run` is no older than R51's threshold, `max(6 h, 2 × cadence)` ([R51](#r51)), and no stop-and-report blocker older than 7 days lacks an issue. `goal-steward` does not monitor itself; its own staleness check covers that ([R51](#r51)).
   2. **Platform fit.** *Met when* every Claude Code release since the last Checkpoint has been checked against the features the contract relies on, and each break has an open issue.
   3. **Consistency.** *Met when* the design documents in `goal-agent`, the contract and docs in `ai-plugin-manager`, and the glossary agree.
   4. **Improvement from evidence.** *Met when* each pattern above the [R43](#r43) thresholds has a Finding or a Definition proposal.
@@ -753,6 +757,7 @@ A starting point for `.claude/agents/<name>.md` in the Home repo. Angle brackets
 name: <name>
 goal-agent-pin: <goal-agent tag or commit the copied guard, gate and Consultation
   scripts came from; written by the Home repo setup steps>
+cadence: <ISO 8601 duration between the routine's sessions, e.g. PT1H; no months, years, zero or fractions (R51)>
 description: >
   Goal agent that owns <long-term goal> across its Covered repos. Finds <kinds
   of findings> in <watched sources> and files each one through triage; runs
@@ -857,7 +862,10 @@ in your definition's `## Covered repos`.
   its name, or edit its comments.
 - Your only repository write is `memory/` in this Home repo: committed alone,
   pushed directly to `main` in its own command, at most once per session, only
-  when it changed, with the trailer `Goal-agent: <name>`. On a non-fast-forward
+  when it changed, with the trailer `Goal-agent: <name>`. A routine session
+  starts on a `claude/…` branch, so push from it in this order: `git fetch
+  origin main`, `git checkout -B main origin/main`, commit `memory/` alone,
+  then `git push origin HEAD:main` as its own command. On a non-fast-forward
   push, rebase and retry once.
 - Memory holds only learnings about how you do your job, true across the Goal.
   It never names a Covered repo. A domain term or a decision becomes an issue,
@@ -933,7 +941,12 @@ marked comment. Judge "blocked" from `dependencies/blocked_by` and each
 blocker's state. Suggest a reorder, post a Definition proposal or a concern
 about the Goal, and report a verdict change, each in a marked comment on the
 State issue. Keep one marked `Last run` comment there, edited in place every
-session: time, issues filed, comments posted, quick exit yes or no.
+session: the marker, then a `## Last run` heading, then the time, issues
+filed, comments posted, quick exit yes or no. Take the time from
+`date -u +%Y-%m-%dT%H:%MZ`, run in this session; never estimate it. A Goal
+agent's `Last run` is stale when it was last updated longer ago than the
+threshold R51 defines, which derives from the `cadence` in its definition.
+Judge health against that threshold, never against the raw `cadence`.
 
 ### Session
 

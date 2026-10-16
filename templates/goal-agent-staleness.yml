@@ -1,5 +1,6 @@
 # Home repo staleness check (R51). Install in a Home repo as .github/workflows/goal-agent-staleness.yml.
-# Daily: unless the agent is Halted, opens one issue when its `Last run` comment is missing or older than 6 hours.
+# Daily: unless the agent is Halted, opens one issue when its `Last run` comment is missing or older
+# than max(6 h, 2 x cadence); cadence is read from the agent definition (missing: 6 hours).
 name: Goal agent staleness
 
 on:

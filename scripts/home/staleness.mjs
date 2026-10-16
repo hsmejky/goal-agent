@@ -1,7 +1,11 @@
 // Home repo staleness check (R51). Runs daily: unless the agent is Halted, opens one issue when its
-// `Last run` comment on the State issue is missing or was last updated more than 6 hours ago. While
-// such an issue is open, opens no other. Reads the comment's `updated_at`, never its text.
+// `Last run` comment on the State issue is missing or was last updated more than max(6 h, 2 x cadence)
+// ago. `cadence` is an ISO 8601 duration in the definition's front matter; missing means 6 hours, an
+// unparsable value fails the run. While such an issue is open, opens no other. Reads the comment's
+// `updated_at`, never its text.
 // Environment: GITHUB_REPOSITORY, optional GOAL_AGENT_NAME, GOAL_AGENT_NOW (ISO time, for tests).
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { ghList } from "../gate/github.mjs";
 import { hasHaltMarker } from "../guard/halt-marker.mjs";
@@ -9,7 +13,47 @@ import { readStateIssues } from "../guard/state-issues.mjs";
 import { agentName, openOrComment } from "./lib.mjs";
 
 export const STALE_MARKER = "<!-- goal-agent:staleness -->";
-export const MAX_AGE_MS = 6 * 60 * 60 * 1000;
+export const MIN_AGE_MS = 6 * 60 * 60 * 1000;
+
+const DURATION = /^P(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/;
+
+/** An ISO 8601 duration in ms. Years and months have no fixed length and are rejected, as is zero. */
+export function parseCadence(text) {
+  const value = String(text).trim();
+  const unparsable = `unparsable cadence "${text}" in the definition;`;
+  const m = DURATION.exec(value);
+  // A bare "P" and a trailing "T" ("PT", "P1DT") match the pattern but name no time, so they are rejected.
+  if (!m || value.endsWith("T") || m.slice(1).every((x) => x === undefined)) {
+    throw new Error(`${unparsable} expected an ISO 8601 duration such as PT1H`);
+  }
+  const [weeks, days, hours, minutes, seconds] = m.slice(1).map((x) => Number(x ?? 0));
+  const ms = (((weeks * 7 + days) * 24 + hours) * 60 + minutes) * 60_000 + seconds * 1000;
+  if (ms <= 0) throw new Error(`${unparsable} it must be longer than zero`);
+  return ms;
+}
+
+/** The `cadence` front matter value of the definition's text, or null when there is none. */
+export function cadenceOf(definition) {
+  const lines = String(definition).split(/\r?\n/);
+  if (lines[0].trim() !== "---") return null;
+  for (const line of lines.slice(1)) {
+    if (line.trim() === "---") break;
+    const m = /^cadence:(.*)$/.exec(line);
+    if (m) return m[1].trim().replace(/^["']|["']$/g, "");
+  }
+  return null;
+}
+
+/** R51's threshold: max(6 h, 2 x cadence); 6 h when the definition has no `cadence`. */
+export function maxAgeMs(definition) {
+  const c = cadenceOf(definition);
+  return c === null ? MIN_AGE_MS : Math.max(MIN_AGE_MS, 2 * parseCadence(c));
+}
+
+/** The agent's definition text. A missing or unreadable file throws: the threshold cannot be derived without it. */
+function readDefinition(cwd, agent) {
+  return readFileSync(join(cwd, ".claude", "agents", `${agent}.md`), "utf8");
+}
 
 /** The agent's `Last run` comment: AI marker first, then a `Last run` heading. Newest update wins. */
 export function findLastRun(comments, agent) {
@@ -24,24 +68,28 @@ export function findLastRun(comments, agent) {
   return mine[0] ?? null;
 }
 
-export function check(repo, agent, now) {
+const hours = (ms) => `${ms / 3_600_000} hours`;
+
+export function check(repo, agent, now, maxAge = MIN_AGE_MS) {
   const states = readStateIssues(repo, agent);
   if (states.length > 1) throw new Error(`${states.length} State issues match ${agent}; expected one`);
   const state = states[0];
   if (state && hasHaltMarker(state.body)) return { result: "halted" };
   const last = state ? findLastRun(ghList(`repos/${repo}/issues/${state.number}/comments`), agent) : null;
   const updated = last ? Date.parse(last.updated_at) : NaN;
-  if (last && Number.isFinite(updated) && now - updated <= MAX_AGE_MS) return { result: "fresh" };
+  if (last && Number.isFinite(updated) && now - updated <= maxAge) return { result: "fresh" };
   const why = !state ? "there is no State issue"
     : !last ? `the State issue #${state.number} has no \`Last run\` comment`
-    : `the \`Last run\` comment on #${state.number} was last updated ${last.updated_at}, more than 6 hours ago`;
+    : `the \`Last run\` comment on #${state.number} was last updated ${last.updated_at}, more than ${hours(maxAge)} ago`;
   const body = `${agent} has stopped reporting: ${why}. Check the routine and its sessions. This issue stays the only open report until it is closed.`;
-  return { result: "stale", ...openOrComment(repo, { marker: STALE_MARKER, title: `Goal agent ${agent} has not reported a Last run in 6 hours`, body, quiet: true }) };
+  return { result: "stale", ...openOrComment(repo, { marker: STALE_MARKER, title: `Goal agent ${agent} has not reported a Last run in ${hours(maxAge)}`, body, quiet: true }) };
 }
 
 function main() {
+  const agent = agentName();
+  const maxAge = maxAgeMs(readDefinition(process.cwd(), agent));
   const now = process.env.GOAL_AGENT_NOW ? Date.parse(process.env.GOAL_AGENT_NOW) : Date.now();
-  const r = check(process.env.GITHUB_REPOSITORY, agentName(), now);
+  const r = check(process.env.GITHUB_REPOSITORY, agent, now, maxAge);
   console.log(`staleness: ${r.result}${r.action ? `; ${r.action} #${r.number}` : ""}`);
 }
 
