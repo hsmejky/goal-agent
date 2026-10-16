@@ -4,12 +4,12 @@
 // State shape (JSON-serialisable, persisted between fake `gh` processes):
 //   { repos: { "owner/name": { issues: {n: issue}, comments: {n: [c]}, pulls: {n: pr},
 //                              commits: {sha: {pulls: [n]}}, statuses: {sha: [status]} } },
-//     nextId, writes: [...], violations: [...], fires: [...], curl: {reject?} }
+//     nextId, writes: [...], violations: [...], ghCalls: [argv], fires: [...], curl: {reject?} }
 
 export class Unsupported extends Error {}
 
 export function newState(seed = {}) {
-  const state = { repos: {}, nextId: 1000, writes: [], violations: [], fires: [], curl: seed.curl ?? {} };
+  const state = { repos: {}, nextId: 1000, writes: [], violations: [], ghCalls: [], fires: [], curl: seed.curl ?? {} };
   const repos = { ...(seed.repos ?? {}) };
   if (seed.repo) repos[seed.repo] = seed;
   for (const [name, r] of Object.entries(repos)) {

@@ -44,7 +44,7 @@ function setup() {
   const tool = (command) =>
     spawnSync("node", [guard, "pre-tool-use"], {
       encoding: "utf8",
-      env: { ...process.env, GOAL_AGENT_GUARD_DIR: records },
+      env: { ...process.env, GOAL_AGENT_GUARD_DIR: records, CLAUDE_CODE_REMOTE: "true" },
       input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s1", cwd: repo, tool_name: "Bash", tool_input: { command } }),
     });
   const originMain = () => git(origin, "rev-parse", "main").trim();

@@ -32,6 +32,7 @@ h.writes.newIssues;   // [{ repo, number, title, body, labels }]
 h.writes.labels;      // [{ repo, issue, action: "add"|"remove", labels }]
 h.writes.all;         // everything in order, with a `kind` field
 h.fires;              // curl calls: [{ method, url, headers (lower-case keys), body, responded }]
+h.ghCalls;            // every gh invocation's argv, in order
 h.state;              // current fake GitHub state, e.g. h.state.repos["me/home"].issues[7].state
 h.cleanup();          // remove the temp dir (call in `after`)
 ```

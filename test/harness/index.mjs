@@ -45,6 +45,8 @@ export function createHarness(seed = {}) {
     },
     /** Every curl invocation: { method, url, headers (lower-case names), body, responded }. */
     get fires() { return read().fires; },
+    /** Every gh invocation's argv, in order (served or refused). */
+    get ghCalls() { return read().ghCalls; },
     /** Calls the fakes refused (non-REST gh usage, unsupported routes). */
     get violations() { return read().violations; },
     /** Write a helper script into the harness temp dir and return its absolute path. */

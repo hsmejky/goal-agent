@@ -14,6 +14,8 @@ function violation(message) {
 }
 
 const argv = process.argv.slice(2);
+state.ghCalls.push(argv);
+save();
 if (argv[0] !== "api") {
   violation(`"gh ${argv.join(" ")}" is not allowed: scripts may only call "gh api <REST path>" (the cloud GitHub proxy rejects GraphQL-based gh subcommands)`);
 }

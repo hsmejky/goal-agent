@@ -526,7 +526,7 @@ Every Goal agent runs without the user: no session of the user's runs it, and no
 *Source:* [Where can a Goal agent run unattended across several repos?][24]; [Which routine shape runs the cross-repo Goal agent?][38] ([ADR 0004][47]); [Can a single-repo routine reach its Covered repos past the auto-mode classifier?][37]; [Does a target named only in the fire payload count as user intent for the classifier?][39]; [Should every Goal agent run in cross-repo mode?][44] ([ADR 0005][48]).
 
 <a id="r45"></a>
-**R45. Guard the routine with `SessionStart` and `PreToolUse` hooks in the Home repo's `.claude/settings.json`; the hook command runs the copy of the guard committed on `origin/main`, not the file on disk. The guard denies:**
+**R45. Guard the routine, in cloud sessions only, with `SessionStart` and `PreToolUse` hooks in the Home repo's `.claude/settings.json`; the hook command runs the copy of the guard committed on `origin/main`, not the file on disk. The guard denies:**
 
 - **the Skill tool;**
 - **a `git push` that is not its own command or that touches anything outside `memory/`;**
@@ -536,13 +536,17 @@ Every Goal agent runs without the user: no session of the user's runs it, and no
 - **every `mcp__` tool except `add_repo`;**
 - **every tool while the agent is Halted, which the guard reads from the State issue once at `SessionStart`.**
 
+- **Scope: the guard applies only to cloud sessions, those where `CLAUDE_CODE_REMOTE` is exactly `"true"`.** With any other value, or the variable unset, `SessionStart` does nothing (no GitHub call, no session record) and `PreToolUse` allows every tool without reading a record. The guard reads the variable at its entry point. Claude Code sets it in cloud sessions only, hook processes inherit it, and the agent cannot change it for a hook from inside its session.
+
 - A `SessionStart` hook cannot deny tools, so the guard hands its Halted verdict to `PreToolUse` through a session record: `SessionStart` writes it, keyed by session id, outside the repo tree, and every `PreToolUse` call reads it. If the record is missing or unreadable, `PreToolUse` denies the tool.
 
 - The guard reads the Covered repo list from the definition's `## Covered repos` ([R42](#r42)).
 - The guard matches shell text, so a `curl` with a token, a script or a rewritten local ref can still get past it. The auto-mode classifier and the Home repo audit ([R50](#r50)) are the backstops.
 - The guard covers the agent's own repos only; staying out of another Goal agent's State issue and markers in a shared Covered repo is a contract rule ([R57](#r57)).
 
-*Why:* the agent runs unattended, so its limits have to be enforced, not requested ([R26](#r26)). A cloud session never installs repo-enabled plugins, so plugin hooks do not run; Home repo project hooks do, in a single-repo routine. Reading the guard from `origin/main` keeps a shell redirect from rewriting it mid-session. The allowed write set is exactly what the contract lets the agent write: issues and comments (PR comments are issue comments in the API), and its memory.
+- Two consequences are accepted ([ADR 0007][51]). If Claude Code renames or drops `CLAUDE_CODE_REMOTE`, the routine runs unguarded; the Home repo audit ([R50](#r50)) and the auto-mode classifier are the backstops. The user's interactive web sessions on a Home repo are guarded like the routine, because no documented signal tells a routine session from an interactive cloud session.
+
+*Why:* the agent runs unattended, so its limits have to be enforced, not requested ([R26](#r26)). The project hooks run in every session opened in a Home repo clone, and the user's own local sessions there must prepare the PRs that change the definition, the contract and the pinned scripts (§3), so the guard restricts the routine's cloud sessions and leaves local sessions alone. A cloud session never installs repo-enabled plugins, so plugin hooks do not run; Home repo project hooks do, in a single-repo routine. Reading the guard from `origin/main` keeps a shell redirect from rewriting it mid-session. The allowed write set is exactly what the contract lets the agent write: issues and comments (PR comments are issue comments in the API), and its memory.
 *Source:* [Which routine shape runs the cross-repo Goal agent?][38] ([ADR 0004][47]); [Do plugin hooks enabled from the Home repo run in a multi-repo routine session?][36].
 
 <a id="r46"></a>
@@ -1258,3 +1262,4 @@ sweep.
 [48]: adr/0005-every-goal-agent-runs-as-a-guarded-routine-on-a-dedicated-home-repo.md
 [49]: https://github.com/hsmejky/goal-agent/pull/19
 [50]: adr/0006-goal-agent-scripts-are-tested-here-and-copied-pinned-into-each-home-repo.md
+[51]: adr/0007-the-guard-restricts-cloud-sessions-only.md

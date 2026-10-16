@@ -1,7 +1,8 @@
 // The Goal agent guard: one program behind Claude Code's hook protocol (R45).
 //   guard.mjs session-start   reads the State issue(s) once and writes the session record
 //   guard.mjs pre-tool-use    reads the record and denies or allows the tool call
-// Fails closed: anything unexpected at PreToolUse denies the tool.
+// Fails closed in cloud sessions: anything unexpected at PreToolUse denies the tool.
+// Outside cloud sessions (CLAUDE_CODE_REMOTE not "true") it does nothing and allows everything.
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
@@ -46,7 +47,12 @@ export function preToolUse(event) {
   return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } };
 }
 
+// The guard restricts cloud sessions only (R45, ADR 0007): Claude Code sets CLAUDE_CODE_REMOTE=true there.
+// Read here, at the entry point, so every other value (or none) allows everything.
+const isCloudSession = (env = process.env) => env.CLAUDE_CODE_REMOTE === "true";
+
 function main(mode) {
+  if ((mode === "session-start" || mode === "pre-tool-use") && !isCloudSession()) return;
   let event = {};
   try { event = JSON.parse(readFileSync(0, "utf8") || "{}"); } catch { /* an unreadable event fails closed below */ }
   if (mode === "session-start") {

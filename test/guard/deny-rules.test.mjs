@@ -56,7 +56,7 @@ const repo = homeRepo();
 const recordDir = mkdtempSync(join(tmpdir(), "goal-agent-records-"));
 cleanups.push(() => rmSync(recordDir, { recursive: true, force: true }));
 const fire = (mode, event) =>
-  h.run("bash", ["-c", hookCommand(mode)], { cwd: repo, input: JSON.stringify(event), env: { GOAL_AGENT_GUARD_DIR: recordDir }, allowViolations: true });
+  h.run("bash", ["-c", hookCommand(mode)], { cwd: repo, input: JSON.stringify(event), env: { GOAL_AGENT_GUARD_DIR: recordDir, CLAUDE_CODE_REMOTE: "true" }, allowViolations: true });
 const started = fire("session-start", { hook_event_name: "SessionStart", session_id: "s1", cwd: repo, source: "startup" });
 assert.equal(started.code, 0, started.stderr);
 
