@@ -1,10 +1,10 @@
 ---
-status: accepted
+status: accepted, amended by R25
 ---
 
 # The guard, gate and Consultation scripts are tested in goal-agent and copied, pinned, into each Home repo
 
-The guard (the `SessionStart` and `PreToolUse` hooks), the gate and the Consultation workflow's script, with their tests, live in this goal-agent repo as the tested source. The Home repo setup steps copy them into each Home repo, and every copy is pinned to a goal-agent commit or tag. The pin is recorded in a `goal-agent-pin` field of the agent definition in the Home repo, which the Home repo setup steps write. There is no setup script for Covered repos; the user's checklists cover those. The Home repo's hooks and workflows run the copy committed there, never code fetched at run time. This resolves the design document's "described here, not shipped" wording for section 11: the design stays the specification, and the scripts are the tested implementation of it. The user still installs each Covered repo's workflow as part of adding the repo, and the agent never writes any of these files. The scripts are tested at their process boundary, with `gh` and `curl` faked on the `PATH`. Scripts that run inside the routine reach GitHub only through REST `gh api`, because the cloud GitHub proxy rejects GraphQL-based `gh` subcommands.
+The guard (the `SessionStart` and `PreToolUse` hooks), the gate and the Consultation workflow's script, with their tests, live in this goal-agent repo as the tested source. The Home repo setup steps copy them into each Home repo, and every copy is pinned to a goal-agent commit or tag. The pin is recorded in a `goal-agent-pin` field of the agent definition in the Home repo, which the Home repo setup steps write (amended, see [Amendments](#amendments)). There is no setup script for Covered repos; the user's checklists cover those. The Home repo's hooks and workflows run the copy committed there, never code fetched at run time. This resolves the design document's "described here, not shipped" wording for section 11: the design stays the specification, and the scripts are the tested implementation of it. The user still installs each Covered repo's workflow as part of adding the repo, and the agent never writes any of these files. The scripts are tested at their process boundary, with `gh` and `curl` faked on the `PATH`. Scripts that run inside the routine reach GitHub only through REST `gh api`, because the cloud GitHub proxy rejects GraphQL-based `gh` subcommands.
 
 ## Considered Options
 
@@ -18,3 +18,11 @@ The guard (the `SessionStart` and `PreToolUse` hooks), the gate and the Consulta
 - Updating the copies includes updating the definition's `goal-agent-pin` in the same PR, so the field never names a version the copies are not.
 - A fix to a script reaches an agent only when the user bumps that Home repo's pin.
 - ADRs 0001–0005 stay as written. The gate they describe is now specified by tested source rather than written freehand per repo.
+
+## Amendments
+
+- **What the pin names, amended by [R25][r25] (issue [#87][i87]).** `goal-agent-pin` names the goal-agent commit or tag that both the Home repo's copied scripts and its adopted contract, operations and definition skeleton text (Appendices A-C of the design) came from. The user bumps it whenever either is re-adopted, including when only the text changed and no script did, in the same Home repo PR. This widens "the copies" in the Consequences above to the text as well as the scripts. [R59][r59] has the re-adoption checklist.
+
+[r25]: ../goal-agents-with-engineering-skills.md#r25
+[r59]: ../goal-agents-with-engineering-skills.md#r59
+[i87]: https://github.com/hsmejky/goal-agent/issues/87
