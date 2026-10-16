@@ -68,7 +68,7 @@ R1–R37 come from the first design ([map #1][1]); R38–R61 and the edits to R1
 | [R56](#r56) | Put the Consultation rule inline in each Covered repo's CLAUDE.md `### Goal agents` block. |
 | [R57](#r57) | Let several Goal agents cover one repo; their Orders stay independent and each hands off the other's state. |
 | [R58](#r58) | Brief Goal agents in the routing guide through Consultation only. |
-| [R59](#r59) | Add or remove a Covered repo, or retire an agent, by the user's checklists. |
+| [R59](#r59) | Add or remove a Covered repo, retire an agent, or re-adopt a goal-agent change, by the user's checklists. |
 | [R60](#r60) | Pilot the design with `goal-steward` on real work. |
 | [R61](#r61) | Migrate `plugin-maintainer` to its own Home repo after the pilot, by a checklist. |
 
@@ -95,7 +95,7 @@ R1–R37 come from the first design ([map #1][1]); R38–R61 and the edits to R1
 | Home repo `.claude/settings.json` and `scripts/` (the pinned copy of `scripts/guard`, `scripts/gate` and `scripts/home`, the hooks' code) | The guard: `SessionStart` and `PreToolUse` hooks ([R45](#r45)) | User, through PRs | Claude Code |
 | Home repo workflows | The audit of `main` ([R50](#r50)) and the daily staleness check ([R51](#r51)) | User, through PRs | GitHub Actions |
 | Home repo CLAUDE.md | Pointer to the contract and the Home repo's own rules for the user's sessions there | User, through PRs | Claude Code |
-| Home repo copies of the guard, gate and Consultation scripts | The scripts the hooks and workflows run, copied by the Home repo setup steps from the tested source in the goal-agent repo and pinned to a goal-agent commit or tag, recorded in the definition's `goal-agent-pin` field ([ADR 0006][50]) | User, through PRs | Claude Code, GitHub Actions |
+| Home repo copies of the guard, gate and Consultation scripts | The scripts the hooks and workflows run, copied by the Home repo setup steps from the tested source in the goal-agent repo and pinned to a goal-agent commit or tag, recorded in the definition's `goal-agent-pin` field, which also names the source of the adopted text ([R25](#r25), [ADR 0006][50]) | User, through PRs | Claude Code, GitHub Actions |
 | Routine (claude.ai) | Hourly schedule, API trigger, prompt naming the owner, the Covered repos and the writes ([R44](#r44), [Appendix F](#appendix-f-routine-prompt)) | User | Claude Code |
 | State issue in the Home repo (label `goal-agent:state`) | Order, Deferred items, Checkpoints, Progress, pending handoff note, halt marker ([R15](#r15)); the `Last run` comment ([R51](#r51)); Definition proposals and blocker reports as comments | Goal agent and user | Goal agent, user, the guard |
 | Home repo `memory/` | Learnings about how the agent does its own job, never naming a Covered repo ([R18](#r18)) | Goal agent | Goal agent |
@@ -352,7 +352,7 @@ The template is in [Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd-in-the
 ## 9. The Goal agent definition
 
 <a id="r25"></a>
-**R25. Keep the definition thin: the read-first gate, Goal, ranked Objectives each with a "Met when" criterion, Non-goals, `## Covered repos` ([R42](#r42)), watched sources each with a Checkpoint key, agent-specific hard limits, agent-specific session steps (work loop, "done" rule, extra start and end steps), and agent-specific Goal review checks ([R32](#r32)), the `goal-agent-pin` frontmatter field that records the goal-agent tag or commit the Home repo's copied scripts came from ([ADR 0006][50]), and the `cadence` frontmatter field ([R51](#r51)). Everything generic lives in the Goal agent contract.**
+**R25. Keep the definition thin: the read-first gate, Goal, ranked Objectives each with a "Met when" criterion, Non-goals, `## Covered repos` ([R42](#r42)), watched sources each with a Checkpoint key, agent-specific hard limits, agent-specific session steps (work loop, "done" rule, extra start and end steps), and agent-specific Goal review checks ([R32](#r32)), the `goal-agent-pin` frontmatter field that records the goal-agent tag or commit the Home repo's copied scripts and the adopted text (the contract, operations and definition skeleton in [Appendices A-C](#appendix-a-definition-skeleton), and the checklists in [R59](#r59)) came from, bumped whenever either is re-adopted, even when only the text changed ([ADR 0006][50], [R59](#r59)), and the `cadence` frontmatter field ([R51](#r51)). Everything generic lives in the Goal agent contract.**
 
 *Why:* sections 3–8 put every shared rule in `goal-agents.md` or `issue-tracker.md`; a definition that restated them would drift, as `plugin-maintainer`'s brief shape and P1–P4 labels did. The generic session lifecycle is the same for every Goal agent, so it is in the contract and the definition only fills in its hooks. [Appendix A](#appendix-a-definition-skeleton) is the skeleton.
 *Source:* [What does a generic Goal agent definition look like?][13]; [Which shared configuration may a Goal agent read, extend, or own?][8], as amended by [Is the shared Goal agent contract a doc, a preloaded skill, or both?][12] and [What does a generic Goal agent definition look like?][13] (session lifecycle in the contract); [How does the agent measure progress on a cross-repo Goal?][34]; [What does adding or removing a Covered repo involve?][43].
@@ -674,7 +674,7 @@ The user's sessions never run a Goal agent. When a decision on an issue in the a
 *Source:* [How does the routing guide brief a cross-repo Goal agent?][42], as narrowed by [Should every Goal agent run in cross-repo mode?][44] (in-session branch dropped); [Where do wayfinder maps in Covered repos sit in the Order?][31]; [Does a target named only in the fire payload count as user intent for the classifier?][39].
 
 <a id="r59"></a>
-**R59. Add or remove a Covered repo, and retire a Goal agent, by the checklists below. The user works through them, or the user's session on request; the agent does none of the steps.**
+**R59. Add or remove a Covered repo, retire a Goal agent, and re-adopt a goal-agent change, by the checklists below. The user works through them, or the user's session on request; the agent does none of the steps.**
 
 Adding a Covered repo (it is covered once the Home repo PR is merged):
 
@@ -698,6 +698,12 @@ Retiring a Goal agent:
 2. Disable the routine.
 3. Close the State issue with a marked comment.
 4. Archive the Home repo.
+
+Re-adopting a goal-agent change (a change to the adopted text or to `scripts/`):
+
+1. In goal-agent, diff the adopted text (Appendices A-C and the R59 checklists) and `scripts/` from the Home repo's current `goal-agent-pin` to the new tag or commit.
+2. Home repo PR: apply the differences, that is, recopy the changed scripts and update the adopted text, and set `goal-agent-pin` to the new tag or commit in the same PR. A text-only change bumps the pin too.
+3. If `scripts/gate/*.mjs` changed, copy them again into each Covered repo, at the same pin as the Home repo (step 3 of adding a Covered repo).
 
 *Why:* every step touches the user's configuration (labels, secrets, CLAUDE.md, workflows, branch protection), which the agent never writes ([R21](#r21)); a checklist is enough, and a setup script is out of scope. Requiring the gate last, and unrequiring it first, keeps a half-installed gate from blocking merges.
 *Source:* [What does adding or removing a Covered repo involve?][43]; [How does a Goal review start without being asked?][29] ([ADR 0003][46], secrets and App).
@@ -756,7 +762,7 @@ A starting point for `.claude/agents/<name>.md` in the Home repo. Angle brackets
 ---
 name: <name>
 goal-agent-pin: <goal-agent tag or commit the copied guard, gate and Consultation
-  scripts came from; written by the Home repo setup steps>
+  scripts and the adopted text came from; written by the Home repo setup steps>
 cadence: <ISO 8601 duration between the routine's sessions, e.g. PT1H; no months, years, zero or fractions (R51)>
 description: >
   Goal agent that owns <long-term goal> across its Covered repos. Finds <kinds
@@ -1154,6 +1160,7 @@ For readers of the decision tickets: these decisions were amended by later ticke
 | [Should a Goal agent file flat issues or a spec with sliced tickets?][10]: slices are not labelled and stay out of the agent's scope. | The session gives slices the spec's label so their PRs are gated; slices still never enter the Order ([R4](#r4), [R13](#r13)). | [How do the user's sessions consult the agent through issues?][30], [Where do wayfinder maps in Covered repos sit in the Order?][31] |
 | [ADR 0003][46], opening paragraph: "a closing reference is a `Closes`, `Fixes` or `Resolves` keyword in the PR body (including `owner/repo#n`)". | One of GitHub's nine closing keywords, matched case-insensitively, followed by an optional colon and then `#n` or `owner/repo#n` ([R29](#r29)). | [Run Goal agents as guarded routines on a Home repo, with gate-fired Goal reviews and Consultations, piloted with goal-steward][52] |
 | [ADR 0002][45], opening paragraph: memory in `.claude/agent-memory/<name>/`. | Plain files in the Home repo's `memory/` ([R18](#r18)). | [ADR 0002 still names .claude/agent-memory/<name>/ as memory; R18 and the guard use memory/][53] |
+| [R25](#r25) and [ADR 0006][50]: `goal-agent-pin` records the goal-agent commit or tag the Home repo's copied scripts came from. | It also names the source of the adopted text (Appendices A-C and the R59 checklists), and is bumped whenever either is re-adopted, text-only changes included ([R25](#r25), [R59](#r59)). | [goal-agent-pin records only the scripts' source; the Home contract's adopted design version is unrecorded][54] |
 
 ## Appendix E: Covered repo files
 
@@ -1283,3 +1290,4 @@ sweep.
 [51]: adr/0007-the-guard-restricts-cloud-sessions-only.md
 [52]: https://github.com/hsmejky/goal-agent/issues/54
 [53]: https://github.com/hsmejky/goal-agent/issues/82
+[54]: https://github.com/hsmejky/goal-agent/issues/87
