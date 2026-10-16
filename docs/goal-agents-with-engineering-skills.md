@@ -733,7 +733,7 @@ It is covered once the Home repo PR is merged.
 
 A change to the adopted text or to `scripts/` or `templates/`.
 
-1. In goal-agent, diff the sources listed in the table above, under "What re-adoption copies, and where it goes", from the Home repo's current `goal-agent-pin` to the new tag or commit.
+1. In goal-agent, diff the sources that [R59](#r59) lists under "What re-adoption copies, and where it goes", from the Home repo's current `goal-agent-pin` to the new tag or commit.
 2. Home repo PR: apply the differences, that is, recopy the changed scripts and templates and update the adopted text, and set `goal-agent-pin` to the new tag or commit in the same PR. A text-only change bumps the pin too.
 3. Home repo PRs: as in step 2, one in every Home repo that shares a Covered repo with this one, all setting the same new pin. Find the other Home repos in each Covered repo's `docs/agents/goal-agents.md` registry; this Home repo's Covered repos are in its definition's `## Covered repos`.
 4. Covered repo PR, only if a file under `scripts/gate/` differs between the old and the new pin: recopy the changed files, so the copy is byte-identical to `scripts/gate/*.mjs` at the new pin. A bump that changes nothing there needs none. Merge the PRs from steps 3 and 4 in one sitting, so the copy does not stay under a Home repo whose pin differs from it in a gate file.
