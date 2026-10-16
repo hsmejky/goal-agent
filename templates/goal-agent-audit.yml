@@ -1,6 +1,6 @@
 # Home repo audit (R50). Install in a Home repo as .github/workflows/goal-agent-audit.yml. A thin caller
 # (ADR 0008): the only step is the goal-agent action, which runs scripts/home/audit.mjs from the commit
-# named in `uses:`. Replace the all-zero SHA with the shared goal-agent-pin (full 40-hex commit SHA on
+# named in `uses:`. Replace <goal-agent-pin> with the shared goal-agent-pin (full 40-hex commit SHA on
 # goal-agent's main), the same in every `uses:` line of the repo.
 # On every push to main: a commit outside memory/ with no merged PR sets Halted and opens one issue.
 name: Goal agent audit
@@ -23,4 +23,4 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: hsmejky/goal-agent/.github/actions/home-audit@0000000000000000000000000000000000000000
+      - uses: hsmejky/goal-agent/.github/actions/home-audit@<goal-agent-pin>

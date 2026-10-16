@@ -689,17 +689,27 @@ The user's sessions never run a Goal agent. When a decision on an issue in the a
 | [Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd-in-the-home-repo) | `docs/agents/goal-agents.md` § Goal agent contract |
 | [Appendix C](#appendix-c-docsagentsissue-trackermd--goal-agent-operations-in-the-home-repo) | `docs/agents/issue-tracker.md` § Goal agent operations |
 | The checklists in this requirement: every `###` section from `### Adding a Covered repo` to the end of the paragraph under `### Checking a Covered repo's gate copy for drift`; the paragraphs before `### Adding a Covered repo` are not adopted | `docs/agents/goal-agents.md` § Checklists |
-| `scripts/` | `scripts/` |
+| `scripts/guard/`, `scripts/lib/` | `scripts/guard/`, `scripts/lib/` |
 | `templates/home-settings.json` | `.claude/settings.json` |
-| `templates/goal-agent-audit.yml`, `templates/goal-agent-staleness.yml` | `.github/workflows/` |
+| `templates/goal-agent-audit.yml`, `templates/goal-agent-staleness.yml`, `templates/goal-agent-drift-check.yml` | `.github/workflows/` |
 
 **Substitutions.** Copying applies these and nothing else; the wording, order and numbering of the copied text stay as they are here:
 
 - `[Rn](#rn)` becomes `Rn`, a name of a requirement in the design at the pin.
-- Every other link to this document (an appendix, a section, a reference-style link to an ADR) becomes an absolute link at the pin: `https://github.com/hsmejky/goal-agent/blob/<pin>/docs/...`, with the anchor kept.
+- Every other link to this document (an appendix, a section) and every reference-style link to a file of goal-agent (an ADR) becomes an inline absolute link at the pin: `https://github.com/hsmejky/goal-agent/blob/<pin>/docs/...`, with the anchor kept. A reference-style link to a URL becomes an inline link to that URL.
 - In Appendix A, the `goal-agent-pin` placeholder becomes the pin value, so that field has no literal text to compare. The agent-specific sections of the definition (`## Goal`, `## Objectives`, `## Non-goals`, `## Covered repos`, `## Watched sources`, `## Hard limits`, `## Session steps`, `## Goal review`) are the Home repo's own and are not compared; compare the rest of the skeleton.
 - The Home repo adds one legend paragraph to its copy of Appendix B and one to its copy of Appendix C, after the opening paragraph, giving its own values for the placeholders `<name>`, `<home>` and `<repo>`. Those paragraphs belong to the Home repo and are not compared.
 - The `## Checklists` introduction in `docs/agents/goal-agents.md` replaces this requirement's first sentence and is not compared. The checklist headings copy as they are, and so does the drift check, which is part of the adopted checklists.
+- In the caller templates, `<goal-agent-pin>` becomes the pin.
+
+**Comparison rules.** The Home repo drift check (`templates/goal-agent-drift-check.yml`) compares a Home repo with these sources rendered at its definition's `goal-agent-pin`, and the gate compares a Covered repo's callers with their templates at the gate's pin. Anything these rules do not allow is drift:
+
+- Contract, checklists and operations: line by line, ignoring trailing blank lines. The contract is the part of `docs/agents/goal-agents.md` before `## Checklists`, without its legend paragraph. The checklists run from the first `###` heading after `## Checklists` to the next `##` heading or the end of the file. The operations are the `## Goal agent operations` section of `docs/agents/issue-tracker.md`, up to the next `##` heading, without its legend paragraph.
+- Skeleton: only the part of the definition before its first `##` heading. Its units are the frontmatter entries (a key line with its indented continuation lines) and the body paragraphs. The `goal-agent-pin` entry reads `goal-agent-pin: <pin>`. A unit without `<...>` placeholders appears verbatim. In a unit with placeholders, each `<...>` stands for any non-empty text and each run of whitespace, line breaks included, for any run of whitespace. The units appear in the skeleton's order; the Home repo may add entries and paragraphs between them.
+- Guard: each file under `scripts/guard/` and `scripts/lib/` equals the file at the pin byte for byte, CRLF read as LF. A file on one side only is drift.
+- Settings: `.claude/settings.json` without its `enabledPlugins` key equals `templates/home-settings.json` as parsed JSON.
+- Callers: each Home caller template that exists at the pin equals the workflow of the same name in `.github/workflows/`. In a Covered repo, `goal-agent-review.yml` and `goal-agent-consult.yml` equal their templates rendered at the SHA of the gate caller's own `uses:` line, which must be a full 40-hex SHA, with the template's sample secret pair replaced by one pair per agent of the repo's `docs/agents/goal-agents.md` registry, in table order; `<NAME>` is the name in upper case with `-` as `_`.
+- `uses:`: every `uses: hsmejky/goal-agent/...@<sha>` in the Home repo's `.github/workflows/` names the `goal-agent-pin`, so the drift check itself runs at the pin.
 
 *Why:* every step touches the user's configuration (labels, secrets, CLAUDE.md, workflows, branch protection), which the agent never writes ([R21](#r21)); a checklist is enough, and a setup script is out of scope. Requiring the gate last, and unrequiring it first, keeps a half-installed gate from blocking merges.
 *Source:* [What does adding or removing a Covered repo involve?][43]; [How does a Goal review start without being asked?][29] ([ADR 0003][46], secrets and App); [Which pin does the shared gate copy follow when two Home repos cover one repo?][55].
