@@ -112,7 +112,10 @@ R1–R37 come from the first design ([map #1][1]); R38–R61 and the edits to R1
 **R38. Give every Goal agent a dedicated Home repo, one per agent, that holds the agent itself (its definition, State issue and memory, and the machinery that runs and bounds it: the contract, tracker docs, hooks, workflows and CLAUDE.md) and no product code, and that is never one of its Covered repos. The Home repo is set up like any repo with the Engineering skills and is the only source of the contract the agent follows.**
 
 - This holds for a Goal agent that covers a single repo too.
-- A Home repo may be public or private; the design does not depend on which. It holds no secrets, and the Claude GitHub App is installed on it: the routine's pushes to `memory/` and its writes to the State issue need that access even when the repo is public. A private Home repo hides the Order and Progress from people who can read only a public Covered repo, so the registry row links a repo they cannot open, and its two workflows use private Actions minutes.
+- A Home repo may be public or private; the design does not depend on which.
+- It holds no secrets and has the Claude GitHub App installed: the routine's `memory/` pushes and State issue writes need the App even when the repo is public.
+- If private: people who can read only a public Covered repo cannot see the Order and Progress, and the registry row there links a repo they cannot open.
+- If private: its workflows use private Actions minutes.
 - The user changes the Home repo's definition, contract, workflows and hooks only through PRs ([R50](#r50)); the agent pushes only `memory/` ([R18](#r18)).
 
 *Why:* a dedicated repo favours no Covered repo, keeps the agent's State issue and memory commits out of their trackers and history, and does not move when a Covered repo is added or removed. Using the only Covered repo as home was rejected: the audit of `main` would flag every ordinary merge there, and adding a second Covered repo would mean moving the agent. User-level definitions were rejected because a routine starts on a fresh VM where nothing under `~/.claude` exists.
@@ -600,7 +603,8 @@ Every Goal agent runs without the user: no session of the user's runs it, and no
 - A definition without `cadence` gets the 6-hour default. A `cadence` that is not an ISO 8601 duration of weeks, days, hours, minutes and seconds fails the workflow with an error naming the value; months, years, zero and fractions such as `PT1.5H` are rejected. A missing or unreadable definition file fails the workflow too.
 - The workflow finds the comment by its marker and `## Last run` heading and reads its `updated_at`, never its text.
 
-*Why:* an unattended agent that silently stops running looks the same as one with nothing to do. A comment rather than a body line keeps a write every hour out of the co-edited body ([R15](#r15)). The time comes from `date` because a session that estimates it writes a wrong one. The 6-hour floor keeps an hourly agent from being flagged a few minutes after each run; twice the cadence gives a slower agent one missed run of slack, where a fixed multiple such as 6 × would leave a daily agent unreported for 6 days.
+*Why:* an unattended agent that silently stops running looks the same as one with nothing to do. A comment rather than a body line keeps a write every hour out of the co-edited body ([R15](#r15)). The time comes from `date` because a session that estimates it writes a wrong one.
+ The 6-hour floor keeps an hourly agent from being flagged a few minutes after each run; twice the cadence gives a slower agent one missed run of slack, where a fixed multiple such as 6 × would leave a daily agent unreported for 6 days.
 *Source:* [Which safeguards bound an unattended agent?][33]; [Where are findings filed, and how is one Order kept across repos?][27] (comment, not body).
 
 ## 13. Consultation
@@ -653,7 +657,8 @@ The user's sessions never run a Goal agent. When a decision on an issue in the a
 - Agent names are unique per Covered repo; the user checks this when adding a repo ([R59](#r59)).
 - An issue may carry both labels. Each agent keeps it in its own Order; the gate fires each agent's routine and waits for both markers ([R37](#r37)).
 - Findings deduplicate against every open issue through a marked comment, never a label change ([R39](#r39)).
-- An agent never writes another agent's State issue, never posts a Goal review marker or Consultation answer under another name, and never edits another agent's comments. This is a contract rule, not guard-enforced; read-only monitoring of another agent is allowed. Reading another agent's Home repo with `add_repo` works on a private Home repo only through the Claude GitHub App installation on it ([R38](#r38), [R61](#r61) step 2), so install the App on every Home repo, not per agent.
+- An agent never writes another agent's State issue, never posts a Goal review marker or Consultation answer under another name, and never edits another agent's comments. This is a contract rule, not guard-enforced; read-only monitoring of another agent is allowed.
+- Reading another agent's Home repo with `add_repo` ([R44](#r44)) works on a private Home repo only through the Claude GitHub App installation on it ([R38](#r38)); install the App on every Home repo, so monitoring does not depend on which agent reads it.
 
 *Why:* two Goals can share a repo without either owning it; independent Orders keep each recommendation intact, and labels already say which agent owns an issue. The gate's union of labels needs no change for two agents.
 *Source:* [How does a cross-repo Goal agent coexist with a single-repo Goal agent in the same repo?][40], as narrowed by [Should every Goal agent run in cross-repo mode?][44] (every agent gate-fired, every registry row has a Home repo).
@@ -712,7 +717,7 @@ Re-adopting a goal-agent change (a change to the adopted text or to `scripts/`):
 ## 16. Pilot and migration
 
 <a id="r60"></a>
-**R60. Pilot the design with one Goal agent on real work: `goal-steward`, Home repo `hsmejky/goal-steward-home`, covering `hsmejky/ai-plugin-manager` and `hsmejky/goal-agent`. A synthetic smoke run may be one acceptance step.** The agent's Findings, reviews and answers live in the Covered repos, and the State issue and `memory/` record only what the agent did there; the Home repo must hold no secrets (the fire secrets live in the Covered repos), whatever its visibility ([R38](#r38)).
+**R60. Pilot the design with one Goal agent on real work: `goal-steward`, Home repo `hsmejky/goal-steward-home`, covering `hsmejky/ai-plugin-manager` and `hsmejky/goal-agent`. A synthetic smoke run may be one acceptance step.** The agent's Findings, Goal reviews and Consultation answers live in the Covered repos, and the State issue and `memory/` record only what the agent did there; the fire secrets live in the Covered repos, and the Home repo's no-secrets rule is in [R38](#r38).
 
 - Goal: "Goal agents in hsmejky's repos run correctly and usefully on current Claude Code, and their design, contract and docs stay consistent and improve from evidence."
 - Objectives, ranked:
