@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by R25
+status: accepted, amended by R25 and R59
 ---
 
 # The guard, gate and Consultation scripts are tested in goal-agent and copied, pinned, into each Home repo
@@ -16,13 +16,15 @@ The guard (the `SessionStart` and `PreToolUse` hooks), the gate and the Consulta
 - Copies can drift from the source, and from each other. The pin makes drift detectable: anyone can read a Home repo's `goal-agent-pin`, compare it with the goal-agent tag, and diff the copied files against the source at that pin. A copy that differs from its pin has been edited locally; a pin behind the latest tag is out of date.
 - Updating a Home repo's scripts is a user PR in that Home repo, so the audit of `main` sees it like any other change to the guard.
 - Updating the copies includes updating the definition's `goal-agent-pin` in the same PR, so the field never names a version the copies are not.
-- A fix to a script reaches an agent only when the user bumps that Home repo's pin.
+- A fix to a script reaches an agent only when the user bumps that Home repo's pin (for a shared Covered repo copy, every sharing Home repo's pin, see [Amendments](#amendments)).
 - ADRs 0001–0005 stay as written. The gate they describe is now specified by tested source rather than written freehand per repo.
 
 ## Amendments
 
 - **What the pin names, amended by [R25][r25] (issue [#87][i87]).** `goal-agent-pin` names the goal-agent commit or tag that both the Home repo's copied scripts and the adopted text (Appendices A-C of the design and its R59 checklists) came from. The user bumps it whenever either is re-adopted, including when only the text changed and no script did, in the same Home repo PR. This widens "the copies" in the Consequences above to the text as well as the scripts. [R59][r59] has the re-adoption checklist.
+- **A Covered repo's gate copy is shared, amended by [R59][r59] (issue [#94][i94]).** A Covered repo has one copy of `scripts/gate/*.mjs`, and every Goal agent covering it runs that copy. All Home repos covering one Covered repo therefore use one shared `goal-agent-pin`, and the copy is at that pin when it is byte-identical to `scripts/gate/*.mjs` there. A pin bump is one coordinated change: a PR in every Home repo sharing the Covered repo, plus a Covered repo PR only if a file under `scripts/gate/` changed between the old and the new pin. This replaces "pinned per Home repo" for the Covered repo copy. Drift in that copy is checked by diffing it against the source at the shared pin, which is not stored in the Covered repo but read from the `goal-agent-pin` in the definition of each Home repo registered in the Covered repo's `docs/agents/goal-agents.md` (Appendix A); unequal pins are drift. When a Home repo removes the Covered repo, the copy stays at the pin the remaining Home repos share, and goes away with the last one.
 
 [r25]: ../goal-agents-with-engineering-skills.md#r25
 [r59]: ../goal-agents-with-engineering-skills.md#r59
 [i87]: https://github.com/hsmejky/goal-agent/issues/87
+[i94]: https://github.com/hsmejky/goal-agent/issues/94
