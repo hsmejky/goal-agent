@@ -6,7 +6,7 @@
 // guard hooks run that same copy: the hook command extracts `scripts/` from origin/main.
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { ghApi, ghList } from "../gate/github.mjs";
+import { ghApi, ghList } from "../lib/github.mjs";
 import { hasHaltMarker } from "../guard/halt-marker.mjs";
 import { definitionName } from "../guard/identity.mjs";
 

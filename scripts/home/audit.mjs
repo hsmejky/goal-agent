@@ -6,7 +6,7 @@
 // only partly covered (the compare API would be needed to cover it).
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { ghApi } from "../gate/github.mjs";
+import { ghApi } from "../lib/github.mjs";
 import { readStateIssues } from "../guard/state-issues.mjs";
 import { agentName, openOrComment, setHalted } from "./lib.mjs";
 

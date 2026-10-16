@@ -25,7 +25,16 @@ test("staleness is scheduled daily", () => {
   assert.match(stale, /schedule:\s*\n\s*- cron: "\d+ \d+ \* \* \*"/);
 });
 
-test("each workflow runs its script", () => {
-  assert.match(audit, /node scripts\/home\/audit\.mjs/);
-  assert.match(stale, /node scripts\/home\/staleness\.mjs/);
+test("each caller job is exactly one step: the goal-agent action at a full 40-hex SHA", () => {
+  for (const [w, unit] of [[audit, "home-audit"], [stale, "home-staleness"]]) {
+    assert.equal((w.match(/^\s*- /gm) ?? []).length - (w.match(/^\s*- cron:/gm) ?? []).length, 1);
+    assert.match(w, new RegExp(`steps:\\s*\\n\\s*- uses: hsmejky/goal-agent/\\.github/actions/${unit}@[0-9a-f]{40}\\s*(\\n|$)`));
+  }
+});
+
+test("a caller passes nothing to the action and runs no script of its own", () => {
+  for (const w of [audit, stale]) {
+    assert.doesNotMatch(w, /^\s*(with|env|run|secrets):/m);
+    assert.doesNotMatch(w, /scripts\//);
+  }
 });

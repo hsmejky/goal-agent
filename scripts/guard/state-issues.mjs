@@ -1,5 +1,5 @@
 // The State issue query shared by the guard (SessionStart), the Home repo audit and the staleness check.
-import { ghList } from "../gate/github.mjs";
+import { ghList } from "../lib/github.mjs";
 
 /** Open State issues of an agent in its Home repo, across all pages. Throws on a read error. */
 export function readStateIssues(homeRepo, agent, opts) {

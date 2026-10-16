@@ -7,7 +7,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { ghList } from "../gate/github.mjs";
+import { ghList } from "../lib/github.mjs";
 import { hasHaltMarker } from "../guard/halt-marker.mjs";
 import { readStateIssues } from "../guard/state-issues.mjs";
 import { agentName, openOrComment } from "./lib.mjs";
