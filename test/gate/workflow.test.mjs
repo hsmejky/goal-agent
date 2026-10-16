@@ -32,11 +32,17 @@ test("comment events on plain issues are skipped", () => {
   assert.match(code, /github\.event\.issue\.pull_request/);
 });
 
-test("the fire credentials reach the script by name, one pair per installed agent, never as the secrets object", () => {
-  assert.match(code, /GOAL_AGENT_GOAL_STEWARD_FIRE_TOKEN: \$\{\{ secrets\.GOAL_AGENT_GOAL_STEWARD_FIRE_TOKEN \}\}/);
-  assert.match(code, /GOAL_AGENT_GOAL_STEWARD_TRIGGER_ID: \$\{\{ secrets\.GOAL_AGENT_GOAL_STEWARD_TRIGGER_ID \}\}/);
+test("the job has one step: the goal-agent gate action at the goal-agent-pin", () => {
+  const steps = code.split(/^\s*steps:\s*$/m)[1];
+  assert.equal((steps.match(/^\s*- /gm) ?? []).length, 1);
+  assert.match(steps, /^\s*- uses: hsmejky\/goal-agent\/\.github\/actions\/gate@<goal-agent-pin>\s*$/m);
+  assert.doesNotMatch(code, /run:/);
+});
+
+test("the fire credentials reach the action by name in the step env, one pair per installed agent, never as the secrets object", () => {
+  assert.match(code, /env:\s*\n\s*GOAL_AGENT_GOAL_STEWARD_FIRE_TOKEN: \$\{\{ secrets\.GOAL_AGENT_GOAL_STEWARD_FIRE_TOKEN \}\}\s*\n\s*GOAL_AGENT_GOAL_STEWARD_TRIGGER_ID: \$\{\{ secrets\.GOAL_AGENT_GOAL_STEWARD_TRIGGER_ID \}\}/);
   assert.doesNotMatch(code, /GOAL_AGENT_SECRETS/);
-  assert.doesNotMatch(code.replace(/^\s*#.*$/gm, ""), /toJSON/);
+  assert.doesNotMatch(code, /toJSON|secrets: inherit/);
 });
 
 test("issues trigger on labeled and unlabeled; its runs are grouped apart from pull_request_target runs", () => {

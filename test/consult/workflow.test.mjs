@@ -23,10 +23,15 @@ test("PR comments are skipped and the comment is never interpolated into a shell
   assert.doesNotMatch(code, /ref:/);
 });
 
-test("the credentials reach only the consult script, by name, one pair per installed agent", () => {
-  assert.match(code, /GOAL_AGENT_GOAL_STEWARD_FIRE_TOKEN: \$\{\{ secrets\.GOAL_AGENT_GOAL_STEWARD_FIRE_TOKEN \}\}/);
-  assert.match(code, /GOAL_AGENT_GOAL_STEWARD_TRIGGER_ID: \$\{\{ secrets\.GOAL_AGENT_GOAL_STEWARD_TRIGGER_ID \}\}/);
+test("the job has one step: the goal-agent consult action at the goal-agent-pin", () => {
+  const steps = code.split(/^\s*steps:\s*$/m)[1];
+  assert.equal((steps.match(/^\s*- /gm) ?? []).length, 1);
+  assert.match(steps, /^\s*- uses: hsmejky\/goal-agent\/\.github\/actions\/consult@<goal-agent-pin>\s*$/m);
+  assert.doesNotMatch(code, /run:/);
+});
+
+test("the credentials reach the action by name in the step env, one pair per installed agent", () => {
+  assert.match(code, /env:\s*\n\s*GOAL_AGENT_GOAL_STEWARD_FIRE_TOKEN: \$\{\{ secrets\.GOAL_AGENT_GOAL_STEWARD_FIRE_TOKEN \}\}\s*\n\s*GOAL_AGENT_GOAL_STEWARD_TRIGGER_ID: \$\{\{ secrets\.GOAL_AGENT_GOAL_STEWARD_TRIGGER_ID \}\}/);
   assert.doesNotMatch(code, /GOAL_AGENT_SECRETS/);
-  assert.doesNotMatch(code.replace(/^\s*#.*$/gm, ""), /toJSON/);
-  assert.match(code, /run: node \.github\/scripts\/goal-agent-review\/consult\.mjs/);
+  assert.doesNotMatch(code, /toJSON|secrets: inherit/);
 });
