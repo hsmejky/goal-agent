@@ -1,5 +1,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHarness } from "../harness/index.mjs";
@@ -15,13 +17,13 @@ const review = (name, sha, verdict, over = {}) => ({ body: marker(name, sha, ver
 const harnesses = [];
 after(() => harnesses.forEach((h) => h.cleanup()));
 
-function runGate(h, payload, event, env = {}) {
+function runGate(h, payload, event, env = {}, cwd = undefined) {
   const eventPath = h.writeScript("event.json", JSON.stringify(payload));
-  return h.run(process.execPath, [gate], { env: { GITHUB_REPOSITORY: REPO, GITHUB_EVENT_NAME: event, GITHUB_EVENT_PATH: eventPath, ...env } });
+  return h.run(process.execPath, [gate], { env: { GITHUB_REPOSITORY: REPO, GITHUB_EVENT_NAME: event, GITHUB_EVENT_PATH: eventPath, ...env }, cwd });
 }
 
 /** Seed `me/cov` with PR 10 (body, head SHA), issues and PR comments; run the gate. */
-function scenario({ body = "", issues = [], comments = [], other = {}, event = "pull_request_target" } = {}) {
+function scenario({ body = "", issues = [], comments = [], other = {}, event = "pull_request_target", cwd } = {}) {
   const h = createHarness({
     repos: {
       [REPO]: { issues: [...issues, { number: 10, title: "PR", comments }], pulls: [{ number: 10, head_sha: SHA, body }] },
@@ -32,7 +34,7 @@ function scenario({ body = "", issues = [], comments = [], other = {}, event = "
   const payload = event === "issue_comment"
     ? { action: "created", issue: { number: 10, pull_request: {} }, comment: {} }
     : { action: "opened", pull_request: { number: 10, head: { sha: SHA } } };
-  const r = runGate(h, payload, event);
+  const r = runGate(h, payload, event, {}, cwd);
   return { h, r, status: h.writes.statuses.at(-1) };
 }
 
@@ -274,4 +276,42 @@ test("a label event on a pull request itself gates nothing here", () => {
   const { r, statuses } = labelScenario({ issues: [{ number: 1, labels: ["goal-agent:alpha"] }], pulls: [pr(10, "Closes #1")], issue: { number: 1, pull_request: {} } });
   assert.equal(r.code, 0);
   assert.equal(statuses.length, 0);
+});
+
+// ---------------------------------------------------------------- caller check (R59)
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
+const CALLER_FILES = [".github/workflows/goal-agent-review.yml", ".github/workflows/goal-agent-consult.yml", "docs/agents/goal-agents.md"];
+
+/** A temp default-branch checkout holding goal-agent's own callers and registry, `edit` applied to the gate caller. */
+function coveredCheckout(edit = (t) => t) {
+  const dir = mkdtempSync(join(tmpdir(), "goal-agent-covered-"));
+  harnesses.push({ cleanup: () => rmSync(dir, { recursive: true, force: true }) });
+  for (const f of CALLER_FILES) cpSync(join(root, f), join(dir, f), { recursive: true });
+  const review = join(dir, CALLER_FILES[0]);
+  writeFileSync(review, edit(readFileSync(review, "utf8")));
+  return dir;
+}
+
+test("callers as the templates render them: the gate passes", () => {
+  const { r, status } = scenario({ body: "Closes #1", issues: [{ number: 1, labels: ["bug"] }], cwd: coveredCheckout() });
+  assert.equal(r.code, 0, r.stderr);
+  assert.equal(status.state, "success");
+});
+
+test("caller drift: the status is still set from the evaluation, then the job fails naming the line", () => {
+  const cwd = coveredCheckout((t) => t.replace("runs-on: ubuntu-latest", "runs-on: self-hosted"));
+  const { r, h, status } = scenario({ body: "Closes #1", issues: [{ number: 1, labels: ["bug"] }], cwd });
+  assert.equal(h.writes.statuses.length, 1);
+  assert.equal(status.state, "success");
+  assert.notEqual(r.code, 0);
+  assert.match(r.stderr, /caller: \.github\/workflows\/goal-agent-review\.yml:\d+: .*self-hosted/);
+});
+
+test("no gate caller in the checkout: the caller check is skipped", () => {
+  const dir = mkdtempSync(join(tmpdir(), "goal-agent-empty-"));
+  harnesses.push({ cleanup: () => rmSync(dir, { recursive: true, force: true }) });
+  const { r, status } = scenario({ body: "Closes #1", issues: [{ number: 1, labels: ["bug"] }], cwd: dir });
+  assert.equal(r.code, 0, r.stderr);
+  assert.equal(status.state, "success");
 });

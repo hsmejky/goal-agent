@@ -52,6 +52,10 @@ The caller files are rendered, not hand-copied. `templates/` at the pin holds th
 - If GitHub cannot fetch the action at the pinned SHA, the job fails and the gate stays red: a loud failure, not a silent fallback.
 - The caller templates, [R59][r59]'s checklists, [R25][r25], [R38][r38], [Appendix D][appd] and [Appendix E][design] change to describe this setup in the tickets that build it. ADRs 0001-0005 and 0007 stay as written; ADR 0007's guard fix still reaches a Home repo by recopying the guard at a new pin.
 
+## Amendments
+
+- **Drift-check checkout of the event commit** ([#114][i114], user decision). The gate and Consultation actions check out only the caller repo's default branch. The Home repo drift-check action (`.github/actions/home-drift-check/`) is the one exception: it checks out the event's commit (the PR's merge commit, or the pushed commit on `main`), because it must compare the files as the PR or push leaves them. The exception holds for that action only, and only while it runs on `pull_request`, never `pull_request_target`, with no secrets, a read-only token on fork PRs, and `persist-credentials: false`, and only reads the checked-out files. It still runs its scripts from `github.action_path` and never checks out goal-agent.
+
 [ctx]: https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#job-context
 [envrun]: https://github.com/hsmejky/goal-agent/actions/runs/38973718004
 [reuse]: https://docs.github.com/en/actions/reference/workflows-and-actions/reusing-workflow-configurations
