@@ -26,7 +26,7 @@ function run({ comments = [], body = "## Order\n", state = true, definition = "#
   const d = mkdtempSync(join(tmpdir(), "stale-cwd-"));
   dirs.push(d);
   mkdirSync(join(d, ".claude", "agents"), { recursive: true });
-  writeFileSync(join(d, ".claude", "agents", "alpha.md"), definition);
+  if (definition !== null) writeFileSync(join(d, ".claude", "agents", "alpha.md"), definition);
   const again = () => {
     const r = h.run(process.execPath, [script], { cwd: d, env: { GITHUB_REPOSITORY: HOME, GOAL_AGENT_NOW: NOW } });
     if (!expectFail) assert.equal(r.code, 0, r.stderr);
@@ -117,6 +117,13 @@ test("a missing cadence uses the 6-hour default", () => {
   assert.equal(h.writes.all.length, 0);
   const { h: h2 } = run({ comments: [lastRun(ago(6.1))], definition: def });
   assert.equal(h2.writes.newIssues.length, 1);
+});
+
+test("a missing definition file fails the workflow instead of defaulting", () => {
+  const { h, first } = run({ comments: [lastRun(ago(40))], definition: null, expectFail: true });
+  assert.notEqual(first.code, 0);
+  assert.match(first.stderr, /definition/);
+  assert.equal(h.writes.all.length, 0);
 });
 
 test("an unparsable cadence fails the workflow with a clear error", () => {

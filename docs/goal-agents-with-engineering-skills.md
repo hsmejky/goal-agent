@@ -596,12 +596,10 @@ Every Goal agent runs without the user: no session of the user's runs it, and no
 **R51. Keep one marked `Last run` comment on the State issue, edited in place by every session that is not Halted: the marker, then a `## Last run` heading, then the time, issues filed, comments posted, quick exit yes or no. The time comes from `date -u +%Y-%m-%dT%H:%MZ`, run in that session, and is never estimated. A daily scheduled workflow in the Home repo opens one issue when that comment was last updated more than `max(6 h, 2 × cadence)` ago, unless the agent is Halted.**
 
 - `cadence` is a front matter field of the agent's definition: an ISO 8601 duration, for example `PT1H` ([Appendix A](#appendix-a-definition-skeleton)). The threshold `max(6 h, 2 × cadence)` is stated here only; [R60](#r60) Health and the contract's health rule use it, never the raw `cadence`.
-- A definition without `cadence` gets the 6-hour default. A `cadence` that is not an ISO 8601 duration fails the workflow with an error naming the value.
+- A definition without `cadence` gets the 6-hour default. A `cadence` that is not an ISO 8601 duration of weeks, days, hours, minutes and seconds fails the workflow with an error naming the value; months, years, zero and fractions such as `PT1.5H` are rejected. A missing or unreadable definition file fails the workflow too.
 - The workflow finds the comment by its marker and `## Last run` heading and reads its `updated_at`, never its text.
 
-*Why (threshold):* the 6-hour floor keeps an hourly agent from being flagged a few minutes after each run; twice the cadence gives a slower agent one missed run of slack, where a fixed multiple such as 6 × would leave a daily agent unreported for 6 days.
-
-*Why:* an unattended agent that silently stops running looks the same as one with nothing to do. A comment rather than a body line keeps a write every hour out of the co-edited body ([R15](#r15)). The time comes from `date` because a session that estimates it writes a wrong one.
+*Why:* an unattended agent that silently stops running looks the same as one with nothing to do. A comment rather than a body line keeps a write every hour out of the co-edited body ([R15](#r15)). The time comes from `date` because a session that estimates it writes a wrong one. The 6-hour floor keeps an hourly agent from being flagged a few minutes after each run; twice the cadence gives a slower agent one missed run of slack, where a fixed multiple such as 6 × would leave a daily agent unreported for 6 days.
 *Source:* [Which safeguards bound an unattended agent?][33]; [Where are findings filed, and how is one Order kept across repos?][27] (comment, not body).
 
 ## 13. Consultation
@@ -759,7 +757,7 @@ A starting point for `.claude/agents/<name>.md` in the Home repo. Angle brackets
 name: <name>
 goal-agent-pin: <goal-agent tag or commit the copied guard, gate and Consultation
   scripts came from; written by the Home repo setup steps>
-cadence: <ISO 8601 duration between the routine's sessions, e.g. PT1H>
+cadence: <ISO 8601 duration between the routine's sessions, e.g. PT1H; no months, years, zero or fractions (R51)>
 description: >
   Goal agent that owns <long-term goal> across its Covered repos. Finds <kinds
   of findings> in <watched sources> and files each one through triage; runs
@@ -946,10 +944,9 @@ State issue. Keep one marked `Last run` comment there, edited in place every
 session: the marker, then a `## Last run` heading, then the time, issues
 filed, comments posted, quick exit yes or no. Take the time from
 `date -u +%Y-%m-%dT%H:%MZ`, run in this session; never estimate it. A Goal
-agent's `Last run` is stale when it was last updated more than
-`max(6 h, 2 × cadence)` ago, where `cadence` is the ISO 8601 duration in its
-definition (6 h when missing). Judge health against that threshold, never
-against the raw `cadence`.
+agent's `Last run` is stale when it was last updated longer ago than the
+threshold R51 defines, which derives from the `cadence` in its definition.
+Judge health against that threshold, never against the raw `cadence`.
 
 ### Session
 

@@ -19,13 +19,16 @@ const DURATION = /^P(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)
 
 /** An ISO 8601 duration in ms. Years and months have no fixed length and are rejected, as is zero. */
 export function parseCadence(text) {
-  const m = DURATION.exec(String(text).trim());
-  if (!m || /T$/.test(String(text).trim()) || m.slice(1).every((x) => x === undefined)) {
-    throw new Error(`unparsable cadence "${text}" in the definition; expected an ISO 8601 duration such as PT1H`);
+  const value = String(text).trim();
+  const unparsable = `unparsable cadence "${text}" in the definition;`;
+  const m = DURATION.exec(value);
+  // A bare "P" and a trailing "T" ("PT", "P1DT") match the pattern but name no time, so they are rejected.
+  if (!m || value.endsWith("T") || m.slice(1).every((x) => x === undefined)) {
+    throw new Error(`${unparsable} expected an ISO 8601 duration such as PT1H`);
   }
-  const [w, d, h, min, s] = m.slice(1).map((x) => Number(x ?? 0));
-  const ms = (((w * 7 + d) * 24 + h) * 60 + min) * 60_000 + s * 1000;
-  if (ms <= 0) throw new Error(`unparsable cadence "${text}" in the definition; it must be longer than zero`);
+  const [weeks, days, hours, minutes, seconds] = m.slice(1).map((x) => Number(x ?? 0));
+  const ms = (((weeks * 7 + days) * 24 + hours) * 60 + minutes) * 60_000 + seconds * 1000;
+  if (ms <= 0) throw new Error(`${unparsable} it must be longer than zero`);
   return ms;
 }
 
@@ -47,8 +50,9 @@ export function maxAgeMs(definition) {
   return c === null ? MIN_AGE_MS : Math.max(MIN_AGE_MS, 2 * parseCadence(c));
 }
 
+/** The agent's definition text. A missing or unreadable file throws: the threshold cannot be derived without it. */
 function readDefinition(cwd, agent) {
-  try { return readFileSync(join(cwd, ".claude", "agents", `${agent}.md`), "utf8"); } catch { return ""; }
+  return readFileSync(join(cwd, ".claude", "agents", `${agent}.md`), "utf8");
 }
 
 /** The agent's `Last run` comment: AI marker first, then a `Last run` heading. Newest update wins. */
@@ -64,6 +68,8 @@ export function findLastRun(comments, agent) {
   return mine[0] ?? null;
 }
 
+const hours = (ms) => `${ms / 3_600_000} hours`;
+
 export function check(repo, agent, now, maxAge = MIN_AGE_MS) {
   const states = readStateIssues(repo, agent);
   if (states.length > 1) throw new Error(`${states.length} State issues match ${agent}; expected one`);
@@ -78,8 +84,6 @@ export function check(repo, agent, now, maxAge = MIN_AGE_MS) {
   const body = `${agent} has stopped reporting: ${why}. Check the routine and its sessions. This issue stays the only open report until it is closed.`;
   return { result: "stale", ...openOrComment(repo, { marker: STALE_MARKER, title: `Goal agent ${agent} has not reported a Last run in ${hours(maxAge)}`, body, quiet: true }) };
 }
-
-const hours = (ms) => `${ms / 3_600_000} hours`;
 
 function main() {
   const agent = agentName();
