@@ -1,5 +1,6 @@
 ---
-status: accepted
+status: accepted, amended
+amended-by: R29 in docs/goal-agents-with-engineering-skills.md
 ---
 
 # Unattended cross-repo Goal reviews, fired by the gate
@@ -23,3 +24,10 @@ A cross-repo Goal agent runs its Goal reviews itself, in its unattended cloud ro
 - Each Covered repo holds the routine's fire token as a secret per agent, alongside its trigger id; adding a Covered repo means adding the gate workflow, that secret and the Claude GitHub App.
 - An issue linked only from the PR sidebar does not gate the PR.
 - The API trigger is a research-preview beta (`experimental-cc-routine-2026-04-01`); if it breaks, the hourly sweep still reviews every PR, only later.
+
+## Amendments
+
+- **Closing-reference rule, amended by [R29][r29] (issue [#54][i54]).** A closing reference is one of GitHub's nine closing keywords (`close`, `closes`, `closed`, `fix`, `fixes`, `fixed`, `resolve`, `resolves`, `resolved`), matched case-insensitively, with an optional colon, followed by `#n` or `owner/repo#n`. This replaces the three keywords named above. It matches GitHub's own closing behaviour: anything that closes the issue on merge also gates the PR. For example, `fixed #3` and `fixes: owner/repo#3` gate.
+
+[r29]: ../goal-agents-with-engineering-skills.md#r29
+[i54]: https://github.com/hsmejky/goal-agent/issues/54
