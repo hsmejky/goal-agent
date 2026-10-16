@@ -1,0 +1,23 @@
+# Home repo audit (R50) as a goal-agent unit (ADR 0008). Called from a Home repo's
+# .github/workflows/goal-agent-audit.yml at the shared goal-agent-pin. Runs scripts/home/audit.mjs from
+# this action's own commit (github.action_path), so the code that runs is the commit the caller's `uses:`
+# names. It checks out the Home repo (default branch, no credentials) for the agent definition and takes
+# no secrets: GH_TOKEN is the calling job's GITHUB_TOKEN with the permissions that job grants.
+name: Goal agent audit
+description: A pushed commit outside memory/ with no merged PR sets Halted and opens one issue.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      with:
+        ref: ${{ github.event.repository.default_branch }}
+        persist-credentials: false
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version: 22
+    - name: Audit the pushed commits
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: node "${{ github.action_path }}/../../../scripts/home/audit.mjs"
