@@ -686,7 +686,7 @@ Removing a Covered repo:
 2. Covered repo PR: remove both workflows, the agent from the `### Goal agents` block and its registry row.
 3. Answer or withdraw any pending Consultation there.
 4. Home repo PR: remove the repo from `## Covered repos`, and rewrite or delete any Objective or "Met when" that names it. Then edit the routine prompt. The definition change makes the agent re-judge every Objective ([R41](#r41)); it drops the repo's Order entries with a marked comment ([R13](#r13)).
-5. Delete the fire-token secret, the trigger id and the label. Open Findings stay as ordinary issues under that repo's triage; the agent writes nothing more to them. The Claude GitHub App stays.
+5. Delete the fire-token secret, the trigger id and the label, and the Actions event policy if no other Goal agent covers the repo. Open Findings stay as ordinary issues under that repo's triage; the agent writes nothing more to them. The Claude GitHub App stays.
 
 Retiring a Goal agent:
 
@@ -726,7 +726,7 @@ Retiring a Goal agent:
 6. Open Findings stay in `ai-plugin-manager` with their `goal-agent:plugin-maintainer` label and triage state; nothing is moved or relabelled.
 7. Create the routine ([R44](#r44), [Appendix F](#appendix-f-routine-prompt)), disabled for now, and set its fire token and trigger id as secrets in `ai-plugin-manager`; check the Claude GitHub App is installed there.
 8. `ai-plugin-manager` PR: install the gate, `goal-agent-review.yml`, that fires the routine ([R37](#r37)); the repo has only `offline-tests.yml` and the [ADR 0001][15] marker check was never installed, so there is nothing to switch from; add `goal-agent-consult.yml` ([R54](#r54)); put `plugin-maintainer` in the `### Goal agents` block with the inline Consultation rule ([R56](#r56)); reduce `docs/agents/goal-agents.md` to the registry, with the Home repo in the agent's row ([R22](#r22)); remove the Goal agent operations section from `docs/agents/issue-tracker.md`, `.claude/agents/plugin-maintainer.md`, `.claude/agent-memory/plugin-maintainer/` and any `/goal-review` skill.
-9. Enable the routine once that PR is merged. Check the first `Last run` comment, and that the next gated PR gets its Goal review from a fire. `goal-agent-review` stays (or becomes) a required status ([R59](#r59) step 4).
+9. Enable the routine once that PR is merged. Check the first `Last run` comment, and that the next gated PR gets its Goal review from a fire. `goal-agent-review` stays (or becomes) a required status ([R59](#r59) step 5).
 
 *Why:* moving one live agent before the design has run once would risk the agent the user relies on most; after the pilot, the same steps that add a Covered repo move it. Findings belong to the repo they concern ([R39](#r39)), so only the agent's own files and state move.
 *Source:* [Should every Goal agent run in cross-repo mode?][44] ([ADR 0005][48]); [What does adding or removing a Covered repo involve?][43].
