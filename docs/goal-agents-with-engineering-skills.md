@@ -54,7 +54,7 @@ R1–R37 come from the first design ([map #1][1]); R38–R61 and the edits to R1
 | [R42](#r42) | List the Covered repos in the definition's `## Covered repos`; the routine prompt repeats it. |
 | [R43](#r43) | Once a day, turn triage outcomes into memory learnings or Definition proposals. |
 | [R44](#r44) | Run every Goal agent as a single-repo cloud routine on its Home repo, reaching Covered repos through `add_repo` and `gh api`. |
-| [R45](#r45) | Guard the routine with Home repo hooks run from `origin/main`. |
+| [R45](#r45) | Guard the routine's cloud sessions with Home repo hooks run from `origin/main`; the guard applies to cloud sessions only. |
 | [R46](#r46) | Run three kinds of session: a fired Goal review, a fired Consultation answer, and the hourly sweep. |
 | [R47](#r47) | When blocked, stop and report on the State issue; report a recurring blocker once. |
 | [R48](#r48) | Bound spend by run shape, not caps; stop the agent with the routine switch or **Halted**. |
@@ -547,7 +547,7 @@ Every Goal agent runs without the user: no session of the user's runs it, and no
 - Two consequences are accepted ([ADR 0007][51]). If Claude Code renames or drops `CLAUDE_CODE_REMOTE`, the routine runs unguarded; the Home repo audit ([R50](#r50)) and the auto-mode classifier are the backstops. The user's interactive web sessions on a Home repo are guarded like the routine, because no documented signal tells a routine session from an interactive cloud session.
 
 *Why:* the agent runs unattended, so its limits have to be enforced, not requested ([R26](#r26)). The project hooks run in every session opened in a Home repo clone, and the user's own local sessions there must prepare the PRs that change the definition, the contract and the pinned scripts (§3), so the guard restricts the routine's cloud sessions and leaves local sessions alone. A cloud session never installs repo-enabled plugins, so plugin hooks do not run; Home repo project hooks do, in a single-repo routine. Reading the guard from `origin/main` keeps a shell redirect from rewriting it mid-session. The allowed write set is exactly what the contract lets the agent write: issues and comments (PR comments are issue comments in the API), and its memory.
-*Source:* [Which routine shape runs the cross-repo Goal agent?][38] ([ADR 0004][47]); [Do plugin hooks enabled from the Home repo run in a multi-repo routine session?][36].
+*Source:* [Which routine shape runs the cross-repo Goal agent?][38] ([ADR 0004][47]); [ADR 0007][51]; [Do plugin hooks enabled from the Home repo run in a multi-repo routine session?][36].
 
 <a id="r46"></a>
 **R46. Run three kinds of session, each starting with the same start steps ([Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd-in-the-home-repo)):**
