@@ -316,11 +316,11 @@ The template is in [Appendix B](#appendix-b-draft-docsagentsgoal-agentsmd-in-the
 ## 8. Shared configuration
 
 <a id="r20"></a>
-**R20. Read the shared configuration on the same triggers the Engineering skills use: the Home repo's `docs/agents/goal-agents.md` and `issue-tracker.md` every session; a Covered repo's `docs/agents/triage-labels.md` and `GLOSSARY.md` before filing in or reviewing for that repo; its relevant ADRs and `.out-of-scope/` before filing in an area.**
+**R20. Read the shared configuration on the same triggers the Engineering skills use: the Home repo's `docs/agents/goal-agents.md` and `issue-tracker.md` every session; a Covered repo's `GLOSSARY.md` before reviewing for that repo or answering a Consultation for it, and its `GLOSSARY.md` and `docs/agents/triage-labels.md` before filing in it; its relevant ADRs and `.out-of-scope/` before filing in an area.**
 
 - A Covered repo's files are fetched by path through `gh api` ([R44](#r44)); the Home repo's are read from its clone.
 
-*Why:* the agent files issues in each Covered repo under that repo's labels and terms, so it needs them there; ADRs and rejections matter only for the area at hand. The contract and tracker commands are the agent's own and live once, in the Home repo. `docs/agents/domain.md` says where the glossary and ADRs live.
+*Why:* the agent files issues in each Covered repo under that repo's labels and terms, and reviews PRs and answers Consultations in those terms, so it needs them there; ADRs and rejections matter only for the area at hand. The contract and tracker commands are the agent's own and live once, in the Home repo. `docs/agents/domain.md` says where the glossary and ADRs live.
 *Source:* [Which shared configuration may a Goal agent read, extend, or own?][8]; [Is the shared Goal agent contract a doc, a preloaded skill, or both?][12]; [Where does a cross-repo Goal agent live?][26]; [Where are findings filed, and how is one Order kept across repos?][27]; `docs/agents/domain.md`.
 
 <a id="r21"></a>
@@ -1018,8 +1018,9 @@ that agent before merge. `Part of #N`, `Refs #N` and sidebar links do not count.
 1. Re-check over REST: the PR is in a Covered repo, not a draft, and gated for
    you. Otherwise write nothing and end. Leave `## Handoff`, `needs-info`
    answers, Deferred items and Progress to the hourly sweep; no work loop.
-2. Read the PR, its diff and its head SHA, and each closing issue with all its
-   comments. The "Done when" criteria in the issue body bind; an Agent Brief
+2. Read the PR, its diff and its head SHA, each closing issue with all its
+   comments, and the Covered repo's `GLOSSARY.md` (none: say so under
+   Non-blocking). The "Done when" criteria in the issue body bind; an Agent Brief
    comment is the spec of the request; a later comment overrides an earlier
    one; advice comments are context only.
 3. If a Goal review comment of yours for this head SHA exists, end.
@@ -1066,8 +1067,9 @@ A question is a comment opening with `> *Question for <name> Goal agent.*`
 on an issue in a Covered repo, by an `OWNER`, `MEMBER` or `COLLABORATOR`.
 
 1. List the issue's comments; if you already answered this question, end.
-2. Read the issue, its comments, your Order and Progress, and anything the
-   question needs.
+2. Read the issue, its comments, your Order and Progress, the Covered repo's
+   `GLOSSARY.md` when the question concerns that repo (none: say so in the
+   answer), and anything the question needs.
 3. Answer each numbered question in one marked comment on the same issue,
    naming the question: a recommendation on scope, Objective, Order place or
    "done when". You may propose Goal-derived "Done when" criteria. Never
