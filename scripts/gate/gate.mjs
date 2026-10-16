@@ -11,7 +11,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parseClosingRefs } from "./closing-refs.mjs";
 import { agentNames, CONTEXT, decide, latestVerdict } from "./evaluate.mjs";
-import { ghApi, ghList, GhError } from "./github.mjs";
+import { ghApi, ghList, GhError } from "../lib/github.mjs";
 import { credentialsFor, fireRoutine } from "./fire.mjs";
 
 const repoPath = (repo, path) => `repos/${repo}/${path}`;

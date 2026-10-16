@@ -1,5 +1,5 @@
 // The hook command for the Home repo's .claude/settings.json. It extracts scripts/ (the pinned copy
-// of scripts/guard, scripts/gate and scripts/home, laid out as in goal-agent) from origin/main
+// of scripts/guard and scripts/lib, laid out as in goal-agent) from origin/main
 // (never the working tree, R45) and runs the guard from there. Any failure exits 2, which blocks
 // the tool call. Outside cloud sessions (CLAUDE_CODE_REMOTE not "true", R45) it exits 0 first, so a
 // local clone whose origin/main has no scripts/ yet, or without bash tooling, is never blocked.

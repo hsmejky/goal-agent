@@ -1,5 +1,6 @@
 // The one REST-only GitHub access layer through `gh api` (ADR 0006: the cloud proxy rejects
-// GraphQL-based gh subcommands). Shared by the gate, the guard and the Home repo scripts.
+// GraphQL-based gh subcommands). Shared by the gate, the guard and the Home repo scripts; lives in
+// scripts/lib/ so the guard copy is scripts/guard/ plus scripts/lib/.
 // `gh` is called through a shell so a `gh` found on the PATH resolves on Windows too, which is why
 // every path is checked against SAFE_PATH before it is put into the command string.
 import { spawnSync } from "node:child_process";

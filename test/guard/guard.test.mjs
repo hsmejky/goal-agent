@@ -13,7 +13,7 @@ import { definitionName, parseCoveredRepos, parseRemote } from "../../scripts/gu
 
 const scriptsSrc = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "scripts");
 // The Home repo holds a pinned copy of scripts/ laid out as in goal-agent; the hooks run it from origin/main.
-const installScripts = (dir) => { for (const sub of ["guard", "gate"]) cpSync(join(scriptsSrc, sub), join(dir, "scripts", sub), { recursive: true }); };
+const installScripts = (dir) => { for (const sub of ["guard", "lib"]) cpSync(join(scriptsSrc, sub), join(dir, "scripts", sub), { recursive: true }); };
 const cleanups = [];
 after(() => cleanups.forEach((f) => f()));
 

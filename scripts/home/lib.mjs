@@ -1,12 +1,12 @@
 // Helpers shared by the Home repo audit (R50: flag commits outside memory/ that skipped a merged PR)
 // and the staleness check (R51: flag an agent whose last run is too old). REST only, through `gh api`.
 //
-// Layout: the Home repo holds ONE pinned copy of scripts/gate, scripts/guard and scripts/home, laid
-// out exactly as in goal-agent (ADR 0006), so the relative imports resolve in both places. The
-// guard hooks run that same copy: the hook command extracts `scripts/` from origin/main.
+// Layout: these scripts run from goal-agent at the pinned SHA, through the home-audit and
+// home-staleness actions (ADR 0008). The Home repo copies only scripts/guard and scripts/lib, which
+// the guard hooks run: the hook command extracts `scripts/` from origin/main.
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { ghApi, ghList } from "../gate/github.mjs";
+import { ghApi, ghList } from "../lib/github.mjs";
 import { hasHaltMarker } from "../guard/halt-marker.mjs";
 import { definitionName } from "../guard/identity.mjs";
 

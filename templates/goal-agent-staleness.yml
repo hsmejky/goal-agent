@@ -1,4 +1,7 @@
 # Home repo staleness check (R51). Install in a Home repo as .github/workflows/goal-agent-staleness.yml.
+# A thin caller (ADR 0008): the only step is the goal-agent action, which runs scripts/home/staleness.mjs
+# from the commit named in `uses:`. Replace the all-zero SHA with the shared goal-agent-pin (full 40-hex
+# commit SHA on goal-agent's main), the same in every `uses:` line of the repo.
 # Daily: unless the agent is Halted, opens one issue when its `Last run` comment is missing or older
 # than max(6 h, 2 x cadence); cadence is read from the agent definition (missing: 6 hours).
 name: Goal agent staleness
@@ -20,13 +23,4 @@ jobs:
   staleness:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: 22
-      - name: Check Last run
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/home/staleness.mjs
+      - uses: hsmejky/goal-agent/.github/actions/home-staleness@0000000000000000000000000000000000000000
