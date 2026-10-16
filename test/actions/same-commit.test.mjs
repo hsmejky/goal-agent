@@ -4,54 +4,71 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join, dirname, resolve } from "node:path";
+import { join, dirname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const actionsDir = join(repo, ".github/actions");
-const actions = existsSync(actionsDir) ? readdirSync(actionsDir).filter((d) => existsSync(join(actionsDir, d, "action.yml"))) : [];
+const dirs = existsSync(actionsDir) ? readdirSync(actionsDir).filter((d) => existsSync(join(actionsDir, d, "action.yml"))) : [];
 const code = (name) => readFileSync(join(actionsDir, name, "action.yml"), "utf8").replace(/\r\n/g, "\n").replace(/^\s*#.*$/gm, "");
-const runLines = (text) => [...text.matchAll(/^\s*run: (.*)$/gm)].map((m) => m[1]);
 
-test("the gate and the Consultation are composite actions", () => {
-  for (const name of ["gate", "consult"]) {
-    assert.ok(actions.includes(name), `.github/actions/${name}/action.yml exists`);
-    assert.match(code(name), /runs:\s*\n\s*using: composite/);
-  }
+// Every action under .github/actions, with the one script it runs.
+const units = [
+  { dir: "gate", script: "scripts/gate/gate.mjs", token: true },
+  { dir: "consult", script: "scripts/gate/consult.mjs", token: false },
+  { dir: "home-audit", script: "scripts/home/audit.mjs", token: true },
+  { dir: "home-staleness", script: "scripts/home/staleness.mjs", token: true },
+];
+
+test("every action under .github/actions is covered by this table", () => {
+  assert.deepEqual([...dirs].sort(), units.map((u) => u.dir).sort());
 });
 
-for (const name of actions) {
-  test(`${name}: every script it runs is a node script under github.action_path that exists at this commit`, () => {
-    const runs = runLines(code(name));
-    assert.ok(runs.length > 0);
-    for (const line of runs) {
-      const m = /^node "\$\{\{ github\.action_path \}\}\/([^"$]+)"$/.exec(line);
-      assert.ok(m, `run line must be node "\${{ github.action_path }}/<script>": ${line}`);
-      const script = resolve(actionsDir, name, m[1]);
-      assert.ok(script.startsWith(join(repo, "scripts")), `${m[1]} resolves into scripts/`);
-      assert.ok(existsSync(script), `${m[1]} exists`);
-    }
+for (const { dir, script, token } of units) {
+  const text = code(dir);
+
+  test(`${dir}: a composite action`, () => {
+    assert.match(text, /^runs:\s*\n\s+using: composite/m);
   });
 
-  test(`${name}: no step checks out or fetches goal-agent, and every action it uses is pinned by full SHA`, () => {
-    const text = code(name);
-    assert.doesNotMatch(text, /repository:/);
-    for (const [line] of text.matchAll(/^.*\bref:.*$/gm)) {
-      assert.match(line, /^\s+ref: \$\{\{ github\.event\.repository\.default_branch \}\}$/, `only the default branch: ${line}`);
-    }
+  test(`${dir}: runs ${script} from github.action_path, the commit the caller pinned, in bash`, () => {
+    const runs = [...text.matchAll(/^\s*run:\s*(.+)$/gm)].map((m) => m[1]);
+    assert.equal(runs.length, 1);
+    const m = /^node "\$\{\{ github\.action_path \}\}\/([^"$]+)"$/.exec(runs[0]);
+    assert.ok(m, `run line must be node "\${{ github.action_path }}/<script>": ${runs[0]}`);
+    const resolved = resolve(actionsDir, dir, m[1]);
+    assert.equal(resolved, join(repo, script));
+    assert.ok(resolved.startsWith(join(repo, "scripts") + sep), `${m[1]} resolves into scripts/`);
+    assert.ok(existsSync(resolved), `${m[1]} exists`);
+    const steps = text.split(/(?=^\s*- )/m).filter((s) => /^\s*run:/m.test(s));
+    assert.equal(steps.length, 1);
+    for (const step of steps) assert.match(step, /^\s*shell: bash$/m, "every run step sets shell: bash");
+  });
+
+  test(`${dir}: no step runs a script from a relative path or the workspace`, () => {
+    assert.doesNotMatch(text, /node (?!"\$\{\{ github\.action_path)/);
+    assert.doesNotMatch(text, /github\.workspace|GITHUB_WORKSPACE/);
     assert.doesNotMatch(text, /\b(git|curl|wget|gh) /);
-    for (const [, ref] of text.matchAll(/^\s*(?:- )?uses: (\S+)/gm)) {
-      assert.match(ref, /^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/);
-      assert.doesNotMatch(ref, /^hsmejky\/goal-agent[/@]/);
-    }
   });
 
-  test(`${name}: the caller repo checkout keeps no credentials and takes nothing from the PR`, () => {
-    const text = code(name);
-    for (const [step] of text.matchAll(/uses: actions\/checkout@[^\n]*(\n\s+with:(\n\s{8,}.*)*)?/g)) {
-      assert.match(step, /persist-credentials: false/);
-    }
+  test(`${dir}: checks out only the caller repo's default branch, without credentials, and never goal-agent`, () => {
+    const checkouts = text.split(/(?=^\s*- )/m).filter((s) => /uses: actions\/checkout@/.test(s));
+    assert.equal(checkouts.length, 1);
+    assert.match(checkouts[0], /actions\/checkout@[0-9a-f]{40}/);
+    assert.match(checkouts[0], /persist-credentials: false/);
+    assert.match(checkouts[0], /^\s+ref: \$\{\{ github\.event\.repository\.default_branch \}\}$/m);
+    assert.doesNotMatch(text, /repository:/);
+    assert.doesNotMatch(text, /hsmejky\/goal-agent/);
     assert.doesNotMatch(text, /github\.event\.pull_request\.head/);
-    assert.doesNotMatch(text, /toJSON|secrets\./);
+  });
+
+  test(`${dir}: every action it uses is pinned by full SHA`, () => {
+    for (const m of text.matchAll(/uses:\s*(\S+)/g)) assert.match(m[1], /^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/, m[1]);
+  });
+
+  test(`${dir}: no secrets and no inputs${token ? "; the token is the caller's GITHUB_TOKEN" : ""}`, () => {
+    assert.doesNotMatch(text, /secrets\b|toJSON/);
+    assert.doesNotMatch(text, /^inputs:/m);
+    if (token) assert.match(text, /GH_TOKEN: \$\{\{ github\.token \}\}/);
   });
 }
