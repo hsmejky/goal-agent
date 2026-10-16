@@ -1,0 +1,33 @@
+# TEMPORARY probe for #112: does the calling step's env reach a remote composite action's script step?
+name: Composite env probe
+
+on:
+  push:
+    branches: [issue-112-gate-units]
+    paths: [.github/workflows/env-probe.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: One step that calls the action with the secret pair in its env
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hsmejky/goal-agent/.github/probe/env@2fc80e3bd4d714803e19a6b3b809435761edf055
+        env:
+          GOAL_AGENT_GOAL_STEWARD_FIRE_TOKEN: ${{ secrets.GOAL_AGENT_GOAL_STEWARD_FIRE_TOKEN }}
+          GOAL_AGENT_GOAL_STEWARD_TRIGGER_ID: ${{ secrets.GOAL_AGENT_GOAL_STEWARD_TRIGGER_ID }}
+          PROBE_PLAIN: plain-value
+  reference:
+    name: The same secrets hashed directly, for comparison
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GOAL_AGENT_GOAL_STEWARD_FIRE_TOKEN: ${{ secrets.GOAL_AGENT_GOAL_STEWARD_FIRE_TOKEN }}
+          GOAL_AGENT_GOAL_STEWARD_TRIGGER_ID: ${{ secrets.GOAL_AGENT_GOAL_STEWARD_TRIGGER_ID }}
+          PROBE_PLAIN: plain-value
+        run: |
+          for n in GOAL_AGENT_GOAL_STEWARD_FIRE_TOKEN GOAL_AGENT_GOAL_STEWARD_TRIGGER_ID PROBE_PLAIN; do
+            v="${!n}"; echo "$n: length ${#v}, sha256 $(printf '%s' "$v" | sha256sum | cut -c1-12)"
+          done
