@@ -32,8 +32,11 @@ test("comment events on plain issues are skipped", () => {
   assert.match(code, /github\.event\.issue\.pull_request/);
 });
 
-test("the fire credentials reach the script as one secrets object", () => {
-  assert.match(code, /GOAL_AGENT_SECRETS: \$\{\{ toJSON\(secrets\) \}\}/);
+test("the fire credentials reach the script by name, one pair per installed agent, never as the secrets object", () => {
+  assert.match(code, /GOAL_AGENT_GOAL_STEWARD_FIRE_TOKEN: \$\{\{ secrets\.GOAL_AGENT_GOAL_STEWARD_FIRE_TOKEN \}\}/);
+  assert.match(code, /GOAL_AGENT_GOAL_STEWARD_TRIGGER_ID: \$\{\{ secrets\.GOAL_AGENT_GOAL_STEWARD_TRIGGER_ID \}\}/);
+  assert.doesNotMatch(code, /GOAL_AGENT_SECRETS/);
+  assert.doesNotMatch(code.replace(/^\s*#.*$/gm, ""), /toJSON/);
 });
 
 test("issues trigger on labeled and unlabeled; its runs are grouped apart from pull_request_target runs", () => {

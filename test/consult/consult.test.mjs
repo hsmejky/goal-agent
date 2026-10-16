@@ -9,7 +9,7 @@ const script = join(dirname(fileURLToPath(import.meta.url)), "../../scripts/gate
 const REPO = "me/cov";
 const URL = `https://github.com/${REPO}/issues/5#issuecomment-99`;
 const secrets = (...names) =>
-  JSON.stringify(Object.fromEntries(names.flatMap((n) => [[secretName(n, "FIRE_TOKEN"), `tok-${n}`], [secretName(n, "TRIGGER_ID"), `trig_${n.replace(/-/g, "")}`]])));
+  Object.fromEntries(names.flatMap((n) => [[secretName(n, "FIRE_TOKEN"), `tok-${n}`], [secretName(n, "TRIGGER_ID"), `trig_${n.replace(/-/g, "")}`]]));
 
 const harnesses = [];
 after(() => harnesses.forEach((h) => h.cleanup()));
@@ -18,7 +18,7 @@ function run({ body = "> *Question for alpha Goal agent.*\n\n1. Is this in scope
   const h = createHarness({ repos: { [REPO]: { issues: [{ number: 5, title: "I" }] } }, curl });
   harnesses.push(h);
   const payload = { action: "created", issue: { number: 5, ...(pr ? { pull_request: {} } : {}) }, comment: { html_url: URL, body, author_association: assoc } };
-  const env = { GITHUB_REPOSITORY: REPO, GITHUB_EVENT_NAME: name, GITHUB_EVENT_PATH: h.writeScript("event.json", JSON.stringify(payload)), GOAL_AGENT_SECRETS: sec };
+  const env = { GITHUB_REPOSITORY: REPO, GITHUB_EVENT_NAME: name, GITHUB_EVENT_PATH: h.writeScript("event.json", JSON.stringify(payload)), ...sec };
   const r = h.run(process.execPath, [script], { env });
   return { h, r };
 }
@@ -46,8 +46,8 @@ test("nothing fires for an outsider, a PR comment, an unknown or uncredentialed 
     pr: { pr: true },
     unknown: { body: "> *Question for ghost Goal agent.*\nq" },
     uncredentialed: { sec: secrets("beta") },
-    noSecrets: { sec: "{}" },
-    badSecrets: { sec: "not json" },
+    noSecrets: { sec: {} },
+    emptySecrets: { sec: { GOAL_AGENT_ALPHA_FIRE_TOKEN: "", GOAL_AGENT_ALPHA_TRIGGER_ID: "" } },
     ownAnswer: { body: "<!-- goal-agent:alpha -->\nAnswer to the question.\n> *Question for alpha Goal agent.*", assoc: "OWNER" },
     notOpening: { body: "see this\n> *Question for alpha Goal agent.*" },
     badName: { body: "> *Question for Al_pha Goal agent.*\nq" },

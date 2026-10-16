@@ -12,7 +12,7 @@ const NEW = "c".repeat(40);
 const PR_URL = `https://github.com/${REPO}/pull/10`;
 const issues = [{ number: 1, labels: ["goal-agent:alpha"] }, { number: 2, labels: ["goal-agent:beta-two"] }];
 const secrets = (...names) =>
-  JSON.stringify(Object.fromEntries(names.flatMap((n) => [[secretName(n, "FIRE_TOKEN"), `tok-${n}`], [secretName(n, "TRIGGER_ID"), `trig_${n.replace(/-/g, "")}`]])));
+  Object.fromEntries(names.flatMap((n) => [[secretName(n, "FIRE_TOKEN"), `tok-${n}`], [secretName(n, "TRIGGER_ID"), `trig_${n.replace(/-/g, "")}`]]));
 const marker = (name, sha) => ({ body: `<!-- goal-agent-review:${name} sha=${sha} verdict=pass -->\nbody`, author_association: "OWNER" });
 const triggerOf = (f) => f.url.split("/").at(-2);
 
@@ -32,7 +32,7 @@ function run(h, { event = "pull_request_target", sec = secrets("alpha", "beta-tw
   const payload = event === "issue_comment" ? { issue: { number: 10, pull_request: {} } } : { pull_request: { number: 10, head: { sha: SHA } } };
   const eventPath = h.writeScript("event.json", JSON.stringify(payload));
   const env = { GITHUB_REPOSITORY: REPO, GITHUB_EVENT_NAME: event, GITHUB_EVENT_PATH: eventPath };
-  if (sec !== null) env.GOAL_AGENT_SECRETS = sec;
+  if (sec !== null) Object.assign(env, sec);
   return h.run(process.execPath, [gate], { env });
 }
 
@@ -43,6 +43,8 @@ test("secret-name mapping: upper-cased, - becomes _", () => {
   const secrets = { GOAL_AGENT_PLUGIN_MAINTAINER_FIRE_TOKEN: "t", GOAL_AGENT_PLUGIN_MAINTAINER_TRIGGER_ID: "id1" };
   assert.deepEqual(credentialsFor("plugin-maintainer", secrets), { token: "t", triggerId: "id1" });
   assert.equal(credentialsFor("alpha", { GOAL_AGENT_ALPHA_FIRE_TOKEN: "t" }), null);
+  assert.equal(credentialsFor("alpha", { GOAL_AGENT_ALPHA_FIRE_TOKEN: "", GOAL_AGENT_ALPHA_TRIGGER_ID: "id" }), null);
+  assert.equal(credentialsFor("alpha", {}), null);
 });
 
 test("a missing review fires the agent once with the PR URL; the pending description lists it", () => {
@@ -132,8 +134,8 @@ test("a transport failure also errors and fails the run", () => {
 
 test("an agent without credentials is never fired and never an error", () => {
   const h = setup();
-  const cases = [null, "{}", "not json", secrets("beta-two"), JSON.stringify({ GOAL_AGENT_ALPHA_FIRE_TOKEN: "t" }), JSON.stringify({ GOAL_AGENT_ALPHA_TRIGGER_ID: "x" })];
-  for (const sec of cases) { const r = run(h, { sec }); assert.equal(r.code, 0, `${sec}: ${r.stderr}`); }
+  const cases = [null, {}, secrets("beta-two"), { GOAL_AGENT_ALPHA_FIRE_TOKEN: "t" }, { GOAL_AGENT_ALPHA_TRIGGER_ID: "x" }, { GOAL_AGENT_ALPHA_FIRE_TOKEN: "", GOAL_AGENT_ALPHA_TRIGGER_ID: "" }, { ...secrets("alpha"), GOAL_AGENT_ALPHA_FIRE_TOKEN: "" }];
+  for (const sec of cases) { const r = run(h, { sec }); assert.equal(r.code, 0, `${JSON.stringify(sec)}: ${r.stderr}`); }
   assert.equal(h.fires.length, 0);
   assert.equal(h.writes.statuses.at(-1).state, "pending");
 });
