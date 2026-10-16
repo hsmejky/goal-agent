@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 const repo = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const actionsDir = join(repo, ".github/actions");
 const actions = existsSync(actionsDir) ? readdirSync(actionsDir).filter((d) => existsSync(join(actionsDir, d, "action.yml"))) : [];
-const code = (name) => readFileSync(join(actionsDir, name, "action.yml"), "utf8").replace(/^\s*#.*$/gm, "");
+const code = (name) => readFileSync(join(actionsDir, name, "action.yml"), "utf8").replace(/\r\n/g, "\n").replace(/^\s*#.*$/gm, "");
 const runLines = (text) => [...text.matchAll(/^\s*run: (.*)$/gm)].map((m) => m[1]);
 
 test("the gate and the Consultation are composite actions", () => {
