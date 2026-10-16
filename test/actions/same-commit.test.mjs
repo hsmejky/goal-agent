@@ -36,7 +36,9 @@ for (const name of actions) {
   test(`${name}: no step checks out or fetches goal-agent, and every action it uses is pinned by full SHA`, () => {
     const text = code(name);
     assert.doesNotMatch(text, /repository:/);
-    assert.doesNotMatch(text, /\bref:/);
+    for (const [line] of text.matchAll(/^.*\bref:.*$/gm)) {
+      assert.match(line, /^\s+ref: \$\{\{ github\.event\.repository\.default_branch \}\}$/, `only the default branch: ${line}`);
+    }
     assert.doesNotMatch(text, /\b(git|curl|wget|gh) /);
     for (const [, ref] of text.matchAll(/^\s*(?:- )?uses: (\S+)/gm)) {
       assert.match(ref, /^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/);
