@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { CLOUD_ENV } from "./cloud-env.mjs";
 
 const guard = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "scripts", "guard", "guard.mjs");
 const cleanups = [];
@@ -44,7 +45,7 @@ function setup() {
   const tool = (command) =>
     spawnSync("node", [guard, "pre-tool-use"], {
       encoding: "utf8",
-      env: { ...process.env, GOAL_AGENT_GUARD_DIR: records, CLAUDE_CODE_REMOTE: "true" },
+      env: { ...process.env, GOAL_AGENT_GUARD_DIR: records, ...CLOUD_ENV },
       input: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s1", cwd: repo, tool_name: "Bash", tool_input: { command } }),
     });
   const originMain = () => git(origin, "rev-parse", "main").trim();

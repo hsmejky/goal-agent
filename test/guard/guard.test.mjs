@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHarness } from "../harness/index.mjs";
+import { CLOUD_ENV } from "./cloud-env.mjs";
 import { hookCommand, hookSettings } from "../../scripts/guard/hook-command.mjs";
 import { findHaltMarker, hasHaltMarker } from "../../scripts/guard/halt-marker.mjs";
 import { definitionName, parseCoveredRepos, parseRemote } from "../../scripts/guard/identity.mjs";
@@ -13,8 +14,6 @@ import { definitionName, parseCoveredRepos, parseRemote } from "../../scripts/gu
 const scriptsSrc = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "scripts");
 // The Home repo holds a pinned copy of scripts/ laid out as in goal-agent; the hooks run it from origin/main.
 const installScripts = (dir) => { for (const sub of ["guard", "gate"]) cpSync(join(scriptsSrc, sub), join(dir, "scripts", sub), { recursive: true }); };
-// The guard keys on CLAUDE_CODE_REMOTE; this test process must not leak its own value into the children.
-delete process.env.CLAUDE_CODE_REMOTE;
 const cleanups = [];
 after(() => cleanups.forEach((f) => f()));
 
@@ -77,7 +76,7 @@ function setup({ issues = [], repo = homeRepo(), curl, env = {} } = {}) {
     h.run("bash", ["-c", hookCommand(mode)], {
       cwd: repo,
       input: JSON.stringify(event),
-      env: { GOAL_AGENT_GUARD_DIR: recordDir, CLAUDE_CODE_REMOTE: "true", ...env },
+      env: { GOAL_AGENT_GUARD_DIR: recordDir, ...CLOUD_ENV, ...env },
       allowViolations: true,
     });
   const start = (id = "s1", extra = {}) => fire("session-start", { hook_event_name: "SessionStart", session_id: id, cwd: repo, source: "startup", ...extra });
@@ -215,13 +214,13 @@ describe("fail closed", () => {
 
   test("a garbled event denies", () => {
     const t = setup();
-    const r = t.h.run("bash", ["-c", hookCommand("pre-tool-use")], { cwd: t.repo, input: "garbage", env: { GOAL_AGENT_GUARD_DIR: t.recordDir, CLAUDE_CODE_REMOTE: "true" } });
+    const r = t.h.run("bash", ["-c", hookCommand("pre-tool-use")], { cwd: t.repo, input: "garbage", env: { GOAL_AGENT_GUARD_DIR: t.recordDir, ...CLOUD_ENV } });
     denied(r);
   });
 });
 
 function fireRaw(t, event) {
-  return t.h.run("bash", ["-c", hookCommand("pre-tool-use")], { cwd: t.repo, input: JSON.stringify(event), env: { GOAL_AGENT_GUARD_DIR: t.recordDir, CLAUDE_CODE_REMOTE: "true" } });
+  return t.h.run("bash", ["-c", hookCommand("pre-tool-use")], { cwd: t.repo, input: JSON.stringify(event), env: { GOAL_AGENT_GUARD_DIR: t.recordDir, ...CLOUD_ENV } });
 }
 
 describe("origin/main is the source of truth", () => {
@@ -255,7 +254,7 @@ describe("scope: cloud sessions only (CLAUDE_CODE_REMOTE)", () => {
   const HALTED = [stateIssue("<!-- goal-agent:halted -->\n")];
   // `unset` drops the variable; the others set it to a value that is not exactly "true".
   const nonCloud = { unset: undefined, "false": "false", empty: "", TRUE: "TRUE", "1": "1" };
-  const envFor = (v) => (v === undefined ? { CLAUDE_CODE_REMOTE: undefined } : { CLAUDE_CODE_REMOTE: v });
+  const envFor = (v) => ({ CLAUDE_CODE_REMOTE: v });
 
   for (const [label, v] of Object.entries(nonCloud)) {
     test(`CLAUDE_CODE_REMOTE ${label}: SessionStart makes no gh call and writes no record`, () => {
@@ -272,6 +271,26 @@ describe("scope: cloud sessions only (CLAUDE_CODE_REMOTE)", () => {
       allowed(t.tool("none", "mcp__x__y", {}));
     });
   }
+
+  test("the hook command exits 0 and allows outside a cloud session even when origin/main has no scripts/", () => {
+    const repo = homeRepo();
+    git(repo, "rm", "-rq", "scripts");
+    git(repo, "commit", "-q", "-m", "drop scripts");
+    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD");
+    for (const v of [undefined, "false"]) {
+      const t = setup({ repo, env: { CLAUDE_CODE_REMOTE: v } });
+      assert.equal(t.start().code, 0);
+      allowed(t.tool("none", "Skill", { skill: "tdd" }));
+    }
+  });
+
+  test("a cloud session whose origin/main has no scripts/ is still blocked (exit 2)", () => {
+    const repo = homeRepo();
+    git(repo, "rm", "-rq", "scripts");
+    git(repo, "commit", "-q", "-m", "drop scripts");
+    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD");
+    assert.equal(setup({ repo }).tool().code, 2);
+  });
 
   test("CLAUDE_CODE_REMOTE true with no session record: PreToolUse denies every tool", () => {
     const t = setup();

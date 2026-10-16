@@ -49,10 +49,10 @@ export function preToolUse(event) {
 
 // The guard restricts cloud sessions only (R45, ADR 0007): Claude Code sets CLAUDE_CODE_REMOTE=true there.
 // Read here, at the entry point, so every other value (or none) allows everything.
-const isCloudSession = (env = process.env) => env.CLAUDE_CODE_REMOTE === "true";
+const isCloudSession = () => process.env.CLAUDE_CODE_REMOTE === "true";
 
 function main(mode) {
-  if ((mode === "session-start" || mode === "pre-tool-use") && !isCloudSession()) return;
+  if (!isCloudSession()) return;
   let event = {};
   try { event = JSON.parse(readFileSync(0, "utf8") || "{}"); } catch { /* an unreadable event fails closed below */ }
   if (mode === "session-start") {
