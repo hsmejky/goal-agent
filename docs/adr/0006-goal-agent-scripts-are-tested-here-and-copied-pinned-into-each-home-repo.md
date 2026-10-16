@@ -21,7 +21,7 @@ The guard (the `SessionStart` and `PreToolUse` hooks), the gate and the Consulta
 
 ## Amendments
 
-- **What the pin names, amended by [R25][r25] (issue [#87][i87]).** `goal-agent-pin` names the goal-agent commit or tag that both the Home repo's copied scripts and its adopted contract, operations and definition skeleton text (Appendices A-C of the design) came from. The user bumps it whenever either is re-adopted, including when only the text changed and no script did, in the same Home repo PR. This widens "the copies" in the Consequences above to the text as well as the scripts. [R59][r59] has the re-adoption checklist.
+- **What the pin names, amended by [R25][r25] (issue [#87][i87]).** `goal-agent-pin` names the goal-agent commit or tag that both the Home repo's copied scripts and the adopted text (Appendices A-C of the design and its R59 checklists) came from. The user bumps it whenever either is re-adopted, including when only the text changed and no script did, in the same Home repo PR. This widens "the copies" in the Consequences above to the text as well as the scripts. [R59][r59] has the re-adoption checklist.
 
 [r25]: ../goal-agents-with-engineering-skills.md#r25
 [r59]: ../goal-agents-with-engineering-skills.md#r59
