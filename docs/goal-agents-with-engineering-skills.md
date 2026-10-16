@@ -700,7 +700,7 @@ Retiring a Goal agent:
 ## 16. Pilot and migration
 
 <a id="r60"></a>
-**R60. Pilot the design with one Goal agent on real work: `goal-steward`, Home repo `hsmejky/goal-steward-home` (private), covering `hsmejky/ai-plugin-manager` and `hsmejky/goal-agent`. A synthetic smoke run may be one acceptance step.**
+**R60. Pilot the design with one Goal agent on real work: `goal-steward`, Home repo `hsmejky/goal-steward-home` (public), covering `hsmejky/ai-plugin-manager` and `hsmejky/goal-agent`. A synthetic smoke run may be one acceptance step.** The Covered repos are public, so the agent's Findings and reviews are public anyway, and the State issue and `memory/` record only what the agent did there; the Home repo must hold no secrets (the fire secrets live in the Covered repos).
 
 - Goal: "Goal agents in hsmejky's repos run correctly and usefully on current Claude Code, and their design, contract and docs stay consistent and improve from evidence."
 - Objectives, ranked:
