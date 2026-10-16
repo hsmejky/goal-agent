@@ -23,8 +23,10 @@ test("PR comments are skipped and the comment is never interpolated into a shell
   assert.doesNotMatch(code, /ref:/);
 });
 
-test("the credentials reach only the consult script, as the gate's secrets object", () => {
-  assert.match(code, /GOAL_AGENT_SECRETS: \$\{\{ toJSON\(secrets\) \}\}/);
-  assert.equal(code.match(/toJSON\(secrets\)/g).length, 1);
+test("the credentials reach only the consult script, by name, one pair per installed agent", () => {
+  assert.match(code, /GOAL_AGENT_GOAL_STEWARD_FIRE_TOKEN: \$\{\{ secrets\.GOAL_AGENT_GOAL_STEWARD_FIRE_TOKEN \}\}/);
+  assert.match(code, /GOAL_AGENT_GOAL_STEWARD_TRIGGER_ID: \$\{\{ secrets\.GOAL_AGENT_GOAL_STEWARD_TRIGGER_ID \}\}/);
+  assert.doesNotMatch(code, /GOAL_AGENT_SECRETS/);
+  assert.doesNotMatch(code.replace(/^\s*#.*$/gm, ""), /toJSON/);
   assert.match(code, /run: node \.github\/scripts\/goal-agent-review\/consult\.mjs/);
 });
