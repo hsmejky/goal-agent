@@ -11,6 +11,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHarness } from "../harness/index.mjs";
 import { adoptFiles, fsTree } from "../../scripts/render/render.mjs";
+import { parseRoster } from "../../scripts/home/pin-move.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "../..");
@@ -202,4 +203,8 @@ test("the PR branch passes the real Home repo drift check", () => {
   const c = spawnSync(process.execPath, [driftCheck, "--source", root, "--home", checkout], { encoding: "utf8", env: { ...process.env, GITHUB_EVENT_NAME: "pull_request", GITHUB_REPOSITORY: A } });
   assert.equal(c.status, 0, c.stderr);
   assert.match(c.stdout, /no drift/);
+});
+
+test("the Roster in goal-agent's docs lists goal-steward and parses without an unreadable row", () => {
+  assert.deepEqual(parseRoster(readFileSync(join(root, ROSTER_PATH), "utf8")), [{ name: "goal-steward", home: A }]);
 });
