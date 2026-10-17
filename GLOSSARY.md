@@ -62,6 +62,10 @@ _Avoid_: Project, scope repo, managed repo
 The dedicated repository, one per Goal agent, that holds the agent itself: its definition, State issue and memory, and the machinery that runs and bounds it (the contract, tracker docs, hooks, workflows and CLAUDE.md). It holds no product code and is never one of the agent's Covered repos.
 _Avoid_: Hub, agent repo, host repo
 
+**Pin move**:
+The one action by the user that moves every Home repo and Covered repo to a new goal-agent commit, opening a PR in each repo that differs; the user merges each PR.
+_Avoid_: Sync, bump, fleet sync, re-adoption
+
 ## Goal agent state
 
 **State issue**:
