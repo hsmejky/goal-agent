@@ -123,6 +123,13 @@ test("curl reads the body from stdin with -d @-", () => {
   h.cleanup();
 });
 
+test("run returns the exit status of a child that exits without reading a large input", () => {
+  const h = createHarness({ repos: {} });
+  const r = h.run("bash", ["-c", "exit 0"], { input: "x".repeat(1024 * 1024) });
+  assert.equal(r.code, 0);
+  h.cleanup();
+});
+
 test("compare answers a seeded status per head and 404s an unknown one; POST pulls records a new PR", () => {
   const h = createHarness({ repos: { "o/r": { compare: { "main...aaa": "behind" } } } });
   const script = h.writeScript("c.cjs", `${SHELL}
