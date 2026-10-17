@@ -27,7 +27,7 @@ The guard (the `SessionStart` and `PreToolUse` hooks), the gate and the Consulta
 - **The guard decision stands, backed by a verified answer, amended by [ADR 0010][adr10] and [ADR 0011][adr11] ([#143][i143]).** Those two ADRs change how a pin bump reaches a Home repo (the Pin move, a local command), not what the pin names or where the guard runs from. The plugin route that ADR 0008 left open came back "no" in [#101][i101], as ADR 0008 records, so the guard stays tested here and a committed copy on each Home repo's `origin/main`.
 
 [adr10]: 0010-goal-agent-prs-across-repos-are-opened-locally-with-the-users-token.md
-[adr11]: adr\0011-a-pin-move-opens-one-caller-pr-per-covered-repo-checked-by-its-own-drift-check.md
+[adr11]: 0011-a-pin-move-opens-one-caller-pr-per-covered-repo-checked-by-its-own-drift-check.md
 [i101]: https://github.com/hsmejky/goal-agent/issues/101
 [i143]: https://github.com/hsmejky/goal-agent/issues/143
 [adr8]: 0008-goal-agent-workflows-run-from-goal-agent-at-the-pinned-sha.md

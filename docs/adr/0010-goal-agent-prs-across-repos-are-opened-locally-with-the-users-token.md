@@ -50,7 +50,7 @@ This amends the "Sync action renders from the target commit" amendment of ADR 00
 
 - **The Home repo comes from the Roster, amended by [ADR 0011][adr11] point 1 ([#143][i143]).** Decision point 2 has the Home repo come from an argument. The Pin move instead walks the Roster ([ADR 0009][adr9]) and opens the Home repo sync PRs and the Covered repo PRs in one run. The token still comes from `gh auth token`, and the rest of this ADR stands.
 
-[adr11]: adr\0011-a-pin-move-opens-one-caller-pr-per-covered-repo-checked-by-its-own-drift-check.md
+[adr11]: 0011-a-pin-move-opens-one-caller-pr-per-covered-repo-checked-by-its-own-drift-check.md
 [i143]: https://github.com/hsmejky/goal-agent/issues/143
 [adr8]: 0008-goal-agent-workflows-run-from-goal-agent-at-the-pinned-sha.md
 [adr9]: 0009-the-roster-and-the-definitions-are-the-registry-of-record.md

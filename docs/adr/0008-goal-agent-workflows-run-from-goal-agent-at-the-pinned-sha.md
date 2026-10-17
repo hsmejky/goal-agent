@@ -77,7 +77,7 @@ The caller files are rendered, not hand-copied. `templates/` at the pin holds th
 [i85]: https://github.com/hsmejky/goal-agent/issues/85
 [i94]: https://github.com/hsmejky/goal-agent/issues/94
 [adr10]: 0010-goal-agent-prs-across-repos-are-opened-locally-with-the-users-token.md
-[adr11]: adr\0011-a-pin-move-opens-one-caller-pr-per-covered-repo-checked-by-its-own-drift-check.md
+[adr11]: 0011-a-pin-move-opens-one-caller-pr-per-covered-repo-checked-by-its-own-drift-check.md
 [i101]: https://github.com/hsmejky/goal-agent/issues/101
 [i101r]: https://github.com/hsmejky/goal-agent/issues/101#issuecomment-6234565138
 [i133]: https://github.com/hsmejky/goal-agent/issues/133
