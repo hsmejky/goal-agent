@@ -29,7 +29,7 @@ h.writes.statuses;    // [{ repo, sha, state, context, description, target_url }
 h.writes.comments;    // [{ repo, issue, body }]
 h.writes.issueEdits;  // [{ repo, issue, changes }]
 h.writes.newIssues;   // [{ repo, number, title, body, labels }]
-h.writes.newPulls;   // [{ repo, number, title, head, base, body }]
+h.writes.newPulls;    // [{ repo, number, title, head, base, body }]
 h.writes.labels;      // [{ repo, issue, action: "add"|"remove", labels }]
 h.writes.all;         // everything in order, with a `kind` field
 h.fires;              // curl calls: [{ method, url, headers (lower-case keys), body, responded }]

@@ -21,9 +21,9 @@ const SOURCE_REPO = "hsmejky/goal-agent";
 const SHA = /^[0-9a-f]{40}$/;
 const BOT = ["-c", "user.name=github-actions[bot]", "-c", "user.email=41898282+github-actions[bot]@users.noreply.github.com"];
 
-function option(argv, name) {
+function option(argv, name, fallback) {
   const i = argv.indexOf(name);
-  return i >= 0 && argv[i + 1] ? argv[i + 1] : null;
+  return i >= 0 && argv[i + 1] ? resolve(argv[i + 1]) : fallback;
 }
 
 function git(cwd, args, { env = process.env, token = false } = {}) {
@@ -77,11 +77,21 @@ function prBody({ sha, oldPin, covered, drift, formatDrift }) {
 }
 
 export async function main(argv = process.argv.slice(2), env = process.env) {
-  const homeDir = resolve(option(argv, "--home") ?? process.cwd());
+  const homeDir = option(argv, "--home", process.cwd());
   const target = env.TARGET;
   checkTarget(target);
 
-  const sourceDir = option(argv, "--source") ? resolve(option(argv, "--source")) : fetchSource(target, option(argv, "--remote") ?? `https://github.com/${SOURCE_REPO}.git`);
+  const given = option(argv, "--source", null);
+  const remote = argv.includes("--remote") ? argv[argv.indexOf("--remote") + 1] : `https://github.com/${SOURCE_REPO}.git`;
+  const sourceDir = given ?? fetchSource(target, remote);
+  try {
+    return await sync({ homeDir, target, sourceDir, env });
+  } finally {
+    if (!given) rmSync(sourceDir, { recursive: true, force: true });
+  }
+}
+
+async function sync({ homeDir, target, sourceDir, env }) {
   const render = await import(pathToFileURL(join(sourceDir, "scripts/render/render.mjs")).href);
   if (typeof render.adoptFiles !== "function") throw new Error(`refused: ${target} predates the sync generator (no adoptFiles in its renderer)`);
 
@@ -102,6 +112,9 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
   const drift = render.compareHome({ source, home: render.fsTree(homeDir), name });
   const base = git(homeDir, ["rev-parse", "--abbrev-ref", "HEAD"]).trim();
   const branch = `goal-agent-sync-${target.slice(0, 12)}`;
+  if (git(homeDir, ["ls-remote", "--heads", "origin", branch], { env, token: true }).trim() !== "") {
+    throw new Error(`refused: branch ${branch} already exists in the Home repo; close the earlier sync PR and delete that branch, then run the sync again`);
+  }
   git(homeDir, ["checkout", "-q", "-b", branch]);
   git(homeDir, ["add", "-A"]);
   git(homeDir, ["commit", "-q", "-m", `Re-adopt goal-agent at ${target}`]);

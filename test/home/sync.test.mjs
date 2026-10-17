@@ -105,6 +105,17 @@ test("one PR from a branch named for the target sets the pin, the uses SHAs and 
   assert.equal(git(repo.origin, "rev-list", "--count", `main..${branch}`).trim(), "1");
 });
 
+test("a re-run for the same target refuses with a clear message when the branch already exists", () => {
+  const repo = homeRepo();
+  const first = run({ home: repo.home });
+  assert.equal(first.r.code, 0, first.r.stderr);
+  git(repo.home, "checkout", "-q", "main");
+  const again = run({ home: repo.home });
+  assert.equal(again.r.code, 1);
+  assert.match(again.r.stderr, /branch goal-agent-sync-b+ already exists.*close the earlier sync PR/);
+  assert.equal(again.h.writes.newPulls.length, 0);
+});
+
 test("the PR body lists the Covered repos' hand steps, the other Home repos, and the limit that starts no workflows", () => {
   const { h } = run();
   const { body } = h.writes.newPulls[0];
