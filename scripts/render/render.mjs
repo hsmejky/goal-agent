@@ -100,7 +100,8 @@ function fencedBlock(design, heading, fence) {
 function checklists(design) {
   const lines = design.split("\n");
   const start = lines.indexOf("### Adding a Covered repo");
-  const last = lines.indexOf("### Checking a Covered repo's gate copy for drift");
+  // The heading was "### Checking a Covered repo's gate copy for drift" before the callers replaced the gate copy.
+  const last = lines.findIndex((l) => l.startsWith("### Checking a Covered repo's") && l.endsWith("for drift"));
   if (start < 0 || last < 0) throw new Error("the design has no R59 checklists");
   let i = last + 1;
   while (i < lines.length && lines[i] === "") i++;
