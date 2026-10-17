@@ -1,6 +1,9 @@
 // The rendering module (R59): renders what re-adoption copies from goal-agent at one pin, and compares a Home
 // repo or a Covered repo against it. Fixtures: goal-agent at 043deaa (design doc, templates, guard) and a
 // snapshot of goal-steward-home pinned to it.
+// Reproduce done-when 4 of #114 against the live repo (goal-steward-home origin/main 8da1a63):
+//   git archive 043deaa | tar -x -C ga-043   (in a goal-agent clone, into an empty ga-043)
+//   node scripts/home/drift-check.mjs --source ga-043 --home goal-steward-home   -> "drift check: no drift", exit 0
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join, dirname } from "node:path";
@@ -52,6 +55,14 @@ test("a goal-agent `uses:` at any SHA other than the pin is uses drift", () => {
   assert.deepEqual(at(PIN), []);
   const drift = at("1".repeat(40));
   assert.deepEqual(drift.map((d) => [d.item, d.file, d.line]), [["uses", ".github/workflows/extra.yml", 4]]);
+});
+
+test("a caller template at the pin whose Home repo caller file is absent is caller drift", () => {
+  for (const name of HOME_CALLERS.filter((n) => source.read(`templates/${n}`) !== null)) {
+    const drift = compareHome({ source, home: overlay(home, { [`.github/workflows/${name}`]: null }), name: NAME });
+    assert.deepEqual(items(drift), ["caller"], name);
+    assert.equal(drift[0].file, `.github/workflows/${name}`);
+  }
 });
 
 test("a guard file missing from or added to the Home repo is guard drift", () => {

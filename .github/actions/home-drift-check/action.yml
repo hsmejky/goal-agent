@@ -1,9 +1,8 @@
 # Home repo drift check (R59) as a goal-agent unit (ADR 0008). Called from a Home repo's
 # .github/workflows/goal-agent-drift-check.yml at the shared goal-agent-pin. Runs scripts/home/drift-check.mjs
 # from this action's own commit (github.action_path), which is the source the Home repo is compared with.
-# Unlike the other actions it checks out the commit under check (the PR's or the pushed one), without
-# credentials: it runs on pull_request, never pull_request_target, takes no secrets, and only reads those files
-# (ADR 0008, amendment). GH_TOKEN is the calling job's GITHUB_TOKEN, used only to open the drift issue on a push.
+# Trust: checks out the event's commit without credentials, the one exception to the default-branch checkout
+# (ADR 0008, Amendments). GH_TOKEN is the calling job's GITHUB_TOKEN, used only to open the drift issue on a push.
 name: Goal agent drift check
 description: Fails when the Home repo's adopted text, guard copy, settings or callers differ from goal-agent at the pin.
 

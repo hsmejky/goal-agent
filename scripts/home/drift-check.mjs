@@ -5,8 +5,8 @@
 // is open. Writes nothing else.
 // The source is goal-agent at this script's own commit, which the `uses:` rule holds to the pin.
 // Environment: GITHUB_REPOSITORY, GITHUB_EVENT_NAME, optional GOAL_AGENT_NAME.
-// Options: --source <dir> (goal-agent checkout to compare with; default: this script's repo), --home <dir>
-// (the Home repo; default: the working directory).
+// Options: --source <dir> (goal-agent checkout to compare with; default: this script's repo) and --home <dir>
+// (the Home repo; default: the working directory), both for tests.
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { compareHome, formatDrift, fsTree } from "../render/render.mjs";

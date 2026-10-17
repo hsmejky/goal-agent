@@ -7,12 +7,12 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHarness } from "../harness/index.mjs";
+import { DRIFT_MARKER } from "../../scripts/home/drift-check.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const script = join(here, "../../scripts/home/drift-check.mjs");
 const fixtures = join(here, "../fixtures");
 const HOME = "hsmejky/goal-steward-home";
-const MARKER = "<!-- goal-agent:drift -->";
 
 const cleanups = [];
 after(() => cleanups.forEach((f) => f()));
@@ -54,9 +54,9 @@ test("on a push to main, drift also opens one issue, and no second while it is o
   const { h, r } = run({ event: "push", edit: caller });
   assert.equal(r.code, 1);
   assert.equal(h.writes.newIssues.length, 1);
-  assert.ok(h.writes.newIssues[0].body.startsWith(MARKER));
+  assert.ok(h.writes.newIssues[0].body.startsWith(DRIFT_MARKER));
   assert.match(h.writes.newIssues[0].body, /branches: \[main, dev\]/);
-  const again = run({ event: "push", edit: caller, issues: [{ number: 9, title: "drift", body: `${MARKER}\nold` }] });
+  const again = run({ event: "push", edit: caller, issues: [{ number: 9, title: "drift", body: `${DRIFT_MARKER}\nold` }] });
   assert.equal(again.r.code, 1);
   assert.equal(again.h.writes.all.length, 0);
 });

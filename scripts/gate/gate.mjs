@@ -1,5 +1,5 @@
 // The Goal review gate (R37): evaluates a PR and sets the commit status `goal-agent-review` on its head SHA.
-// Runs from the default branch under `pull_request_target` / `issue_comment`; reads only the API.
+// Runs from the default branch under `pull_request_target` / `issue_comment`; reads the API, and the default-branch checkout for the caller check.
 // Environment: GITHUB_REPOSITORY, GITHUB_EVENT_NAME, GITHUB_EVENT_PATH (and gh's own GH_TOKEN).
 // After posting the statuses it checks the Covered repo's callers in the cwd (the default-branch checkout)
 // against goal-agent's templates at this script's own commit (R59); on drift it fails the job naming the
@@ -10,6 +10,7 @@
 //   evaluate()          PR -> { state, description, missing }
 //   fireMissing()       fires the agents in `missing` once per head SHA (fire.mjs; record in the status description)
 //   report()            posts the status
+//   callerDrift()       the Covered repo's callers in the cwd against goal-agent's templates (R59)
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +19,9 @@ import { agentNames, CONTEXT, decide, latestVerdict } from "./evaluate.mjs";
 import { ghApi, ghList, GhError } from "../lib/github.mjs";
 import { credentialsFor, fireRoutine } from "./fire.mjs";
 import { compareCovered, COVERED_CALLERS, formatDrift, fsTree } from "../render/render.mjs";
+
+/** The gate's own caller file; the first of the Covered callers. */
+const GATE_CALLER = COVERED_CALLERS[0];
 
 const repoPath = (repo, path) => `repos/${repo}/${path}`;
 
@@ -148,7 +152,7 @@ export function main(env = process.env) {
 
 /** Caller drift of the checkout at `cwd` against this script's own templates; prints it and returns whether any. */
 export function callerDrift(cwd) {
-  if (!existsSync(join(cwd, ".github/workflows", COVERED_CALLERS[0]))) return false;
+  if (!existsSync(join(cwd, ".github/workflows", GATE_CALLER))) return false;
   const source = fsTree(join(dirname(fileURLToPath(import.meta.url)), "../.."));
   const drift = compareCovered({ source, covered: fsTree(cwd) });
   if (drift.length) console.error(`goal-agent-review: the callers differ from goal-agent's templates:\n${formatDrift(drift)}`);
