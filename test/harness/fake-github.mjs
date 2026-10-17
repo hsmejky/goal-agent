@@ -4,17 +4,21 @@
 // State shape (JSON-serialisable, persisted between fake `gh` processes):
 //   { repos: { "owner/name": { issues: {n: issue}, comments: {n: [c]}, pulls: {n: pr},
 //                              commits: {sha: {pulls: [n]}}, statuses: {sha: [status]},
-//                              files: {path: text} (served by GET contents/<path>) } },
-//     nextId, writes: [...], violations: [...], ghCalls: [argv], fires: [...], curl: {reject?} }
+//                              files: {path: text} (served by GET contents/<path>),
+//                              refFiles: {ref: {path: text}} (served by GET contents/<path>?ref=<ref>),
+//                              secrets: [name] (names only), labels: [name], eventPolicies: {workflow file: policy} } },
+//     token: {value, scopes: [..]} | null, nextId, writes: [...], violations: [...], ghCalls: [argv], fires: [...], curl: {reject?} }
 
 export class Unsupported extends Error {}
 
 export function newState(seed = {}) {
-  const state = { repos: {}, nextId: 1000, writes: [], violations: [], ghCalls: [], fires: [], curl: seed.curl ?? {} };
+  const state = { repos: {}, token: seed.token ?? null, nextId: 1000, writes: [], violations: [], ghCalls: [], fires: [], curl: seed.curl ?? {} };
   const repos = { ...(seed.repos ?? {}) };
   if (seed.repo) repos[seed.repo] = seed;
   for (const [name, r] of Object.entries(repos)) {
-    const repo = { issues: {}, comments: {}, pulls: {}, commits: {}, statuses: {}, compare: { ...(r.compare ?? {}) }, files: { ...(r.files ?? {}) } };
+    const repo = { issues: {}, comments: {}, pulls: {}, commits: {}, statuses: {}, compare: { ...(r.compare ?? {}) }, files: { ...(r.files ?? {}) }, refFiles: { ...(r.refFiles ?? {}) },
+      secrets: (r.secrets ?? []).map((x) => (typeof x === "string" ? x : x.name)), // values are dropped on seeding: the fake never holds one
+      labels: (r.labels ?? []).map((l) => (typeof l === "string" ? l : l.name)), eventPolicies: { ...(r.eventPolicies ?? {}) } };
     for (const i of r.issues ?? []) {
       repo.issues[i.number] = { state: "open", body: "", user: { login: "someone" }, ...i, labels: [...(i.labels ?? [])] };
       repo.comments[i.number] = (i.comments ?? []).map((c) => ({ id: state.nextId++, user: { login: "someone" }, ...c }));
@@ -100,7 +104,15 @@ const ROUTES = [
   // pulls
   ["GET", /^pulls$/, (s, repo, _m, { query }) => {
     const want = query.state ?? "open";
-    return ok(Object.values(repo.pulls).filter((p) => want === "all" || p.state === want).map(asPull));
+    const head = query.head ? String(query.head).replace(/^[^:]*:/, "") : null; // "owner:branch" or "branch"
+    return ok(Object.values(repo.pulls).filter((p) => (want === "all" || p.state === want) && (head === null || p.head.ref === head)).map(asPull));
+  }],
+  ["PATCH", /^pulls\/(\d+)$/, (s, repo, m, { body, name }) => {
+    const pr = repo.pulls[m[1]];
+    if (!pr) return notFound("pull");
+    Object.assign(pr, body);
+    if (body.state === "closed") record(s, "pull-close", name, { number: Number(m[1]) });
+    return ok(asPull(pr));
   }],
   ["GET", /^pulls\/(\d+)$/, (s, repo, m) => (repo.pulls[m[1]] ? ok(asPull(repo.pulls[m[1]])) : notFound("pull"))],
   ["POST", /^pulls$/, (s, repo, _m, { body, name }) => {
@@ -114,7 +126,16 @@ const ROUTES = [
   ["GET", /^compare\/(.+)$/, (s, repo, m) => (repo.compare[decodeURIComponent(m[1])] ? ok({ status: repo.compare[decodeURIComponent(m[1])] }) : notFound("compare"))],
   // commits
   ["GET", /^commits\/([^/]+)$/, (s, repo, m) => (repo.commits[m[1]] ? ok({ sha: m[1], files: repo.commits[m[1]].files.map((f) => (typeof f === "string" ? { filename: f } : f)) }) : notFound("commit"))],
-  ["GET", /^contents\/(.+)$/, (s, repo, m) => (m[1] in repo.files ? ok({ type: "file", path: m[1], encoding: "base64", content: Buffer.from(repo.files[m[1]]).toString("base64") }) : notFound("file"))],
+  // contents: with `?ref=` and any refFiles seeded, only refFiles[ref] is read (unseeded ref: 404); otherwise `files`
+  ["GET", /^contents\/(.+)$/, (s, repo, m, { query }) => {
+    const files = query.ref && Object.keys(repo.refFiles).length ? repo.refFiles[query.ref] ?? {} : repo.files;
+    return m[1] in files ? ok({ type: "file", path: m[1], encoding: "base64", content: Buffer.from(files[m[1]]).toString("base64") }) : notFound("file");
+  }],
+  // names only, as the real API lists them: no route returns a secret value
+  ["GET", /^actions\/secrets$/, (s, repo) => ok({ total_count: repo.secrets.length, secrets: repo.secrets.map((name) => ({ name })) })],
+  ["GET", /^labels$/, (s, repo) => ok(repo.labels.map((name) => ({ name })))],
+  // event policy of a workflow, seeded as eventPolicies: { "goal-agent-review.yml": {...} }; 404 when absent
+  ["GET", /^actions\/workflows\/([^/]+)\/event-policy$/, (s, repo, m) => (repo.eventPolicies[m[1]] ? ok({ workflow: m[1], ...repo.eventPolicies[m[1]] }) : notFound("event policy"))],
   ["GET", /^commits\/([^/]+)\/pulls$/, (s, repo, m) => ok((repo.commits[m[1]]?.pulls ?? []).map((n) => asPull(repo.pulls[n])).filter(Boolean))],
   ["GET", /^commits\/([^/]+)\/statuses$/, (s, repo, m) => ok(repo.statuses[m[1]] ?? [])],
   ["GET", /^commits\/([^/]+)\/status$/, (s, repo, m) => ok({ sha: m[1], ...combined(repo.statuses[m[1]] ?? []) })],

@@ -31,6 +31,7 @@ h.writes.issueEdits;  // [{ repo, issue, changes }]
 h.writes.newIssues;   // [{ repo, number, title, body, labels }]
 h.writes.newPulls;    // [{ repo, number, title, head, base, body }]
 h.writes.labels;      // [{ repo, issue, action: "add"|"remove", labels }]
+h.writes.closedPulls; // [{ repo, number }]
 h.writes.all;         // everything in order, with a `kind` field
 h.fires;              // curl calls: [{ method, url, headers (lower-case keys), body, responded }]
 h.ghCalls;            // every gh invocation's argv, in order
@@ -42,15 +43,18 @@ h.cleanup();          // remove the temp dir (call in `after`)
 
 ## What fails a test
 
-`gh` anything other than `gh api <path>` (`gh issue list`, `gh pr view`...), `gh api graphql`,
+`gh` anything other than `gh api <path>` and `gh auth token` (`gh issue list`, `gh pr view`...), `gh api graphql`,
 `--jq`/`--template`, and REST routes the fake does not implement are recorded as violations and make
 `h.run` throw with a `fake gh: ...` message (pass `{ allowViolations: true }` to inspect instead).
 Missing resources (unknown issue number) return a normal 404 and are not violations.
 
 Supported REST routes (all under `repos/{owner}/{repo}/`): `issues` (GET list with `state`, `labels`; POST),
 `issues/{n}` (GET, PATCH), `issues/{n}/comments` (GET, POST), `issues/{n}/labels` (POST), `issues/{n}/labels/{name}` (DELETE),
-`pulls` (GET, POST), `pulls/{n}` (GET), `compare/{base}...{head}` (GET; seeded as `compare: { "main...sha": "behind" }`, else 404), `commits/{sha}` (files seeded as `files: [path]`), `commits/{sha}/pulls`, `commits/{sha}/statuses`, `commits/{sha}/status` (GET),
+`pulls` (GET with `state` and `head` = `owner:branch`; POST), `pulls/{n}` (GET, PATCH; `state=closed` is recorded as `h.writes.closedPulls`), `contents/{path}` (GET, base64; seeded as `files: { path: text }`, or per ref as `refFiles: { ref: { path: text } }` and read with `?ref=`; once any `refFiles` are seeded an unseeded ref is 404, a missing path is always 404), `actions/secrets` (GET, names only; seeded as `secrets: [name]`, a `{ name, value }` entry keeps the name and drops the value; `{ total_count: 0, secrets: [] }` when unseeded), `labels` (GET; seeded as `labels: [name]`, `[]` when unseeded), `actions/workflows/{file}/event-policy` (GET; seeded as `eventPolicies: { "goal-agent-review.yml": { ... } }`, else 404), `compare/{base}...{head}` (GET; seeded as `compare: { "main...sha": "behind" }`, else 404), `commits/{sha}` (files seeded as `files: [path]`), `commits/{sha}/pulls`, `commits/{sha}/statuses`, `commits/{sha}/status` (GET),
 `statuses/{sha}` (POST). Add routes to `ROUTES` in `fake-github.mjs` (and a test) when a script needs more.
+The user's token is seeded at the top level as `token: { value: "...", scopes: ["repo", "workflow"] }`; omit it for "no token".
+`gh auth token` (the only `gh` subcommand besides `api`) prints the value, or exits 1 with `no oauth token found` when none is seeded.
+`gh api -i user` prints the response headers with `X-Oauth-Scopes: repo, workflow` (exit 1 when no token), so a script can read the scopes.
 Supported `gh api` flags: `-X`, `-f`, `-F` (with `key[]=` arrays), `--input` (file or `-`), `-H`, `--paginate`.
 
 ## Platform notes
