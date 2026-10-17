@@ -1,0 +1,29 @@
+# Home repo sync (R59) as a goal-agent unit (ADR 0008). Called from a Home repo's
+# .github/workflows/goal-agent-sync.yml at the shared goal-agent-pin. Runs scripts/home/sync.mjs from this action's
+# own commit (github.action_path); that script verifies the target commit is on goal-agent's main and then renders
+# from the target (ADR 0008, Amendments). Trust: checks out the Home repo's default branch without credentials;
+# the script pushes one branch with GH_TOKEN, the calling job's GITHUB_TOKEN (contents: write, pull-requests: write).
+name: Goal agent sync
+description: Opens one PR that brings the Home repo to a target goal-agent commit.
+
+inputs:
+  target:
+    description: Target goal-agent commit, a full 40-hex SHA on goal-agent's main.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      with:
+        ref: ${{ github.event.repository.default_branch }}
+        persist-credentials: false
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version: 22
+    - name: Open the sync PR
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TARGET: ${{ inputs.target }}
+      run: node "${{ github.action_path }}/../../../scripts/home/sync.mjs"

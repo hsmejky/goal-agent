@@ -1,0 +1,29 @@
+# Home repo sync (R59). Install in a Home repo as .github/workflows/goal-agent-sync.yml.
+# A thin caller (ADR 0008): the only step is the goal-agent action, which opens one PR that brings the Home repo
+# to the target goal-agent commit. Replace <goal-agent-pin> with the shared goal-agent-pin (full 40-hex commit SHA
+# on goal-agent's main), the same in every `uses:` line of the repo.
+# Started by hand with one input, the target commit (a full SHA reachable from goal-agent's main; anything else is
+# refused). Needs the repo setting "Allow GitHub Actions to create pull requests". A PR opened with GITHUB_TOKEN
+# starts no workflows: close and reopen it, or push a commit to it, to start the drift check before merging.
+name: Goal agent sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Target goal-agent commit (full 40-hex SHA on goal-agent's main)
+        required: true
+        type: string
+
+# The PR is the only write. The Home repo holds no secrets.
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hsmejky/goal-agent/.github/actions/home-sync@<goal-agent-pin>
+        with:
+          target: ${{ inputs.target }}

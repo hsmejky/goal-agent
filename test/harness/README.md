@@ -29,6 +29,7 @@ h.writes.statuses;    // [{ repo, sha, state, context, description, target_url }
 h.writes.comments;    // [{ repo, issue, body }]
 h.writes.issueEdits;  // [{ repo, issue, changes }]
 h.writes.newIssues;   // [{ repo, number, title, body, labels }]
+h.writes.newPulls;    // [{ repo, number, title, head, base, body }]
 h.writes.labels;      // [{ repo, issue, action: "add"|"remove", labels }]
 h.writes.all;         // everything in order, with a `kind` field
 h.fires;              // curl calls: [{ method, url, headers (lower-case keys), body, responded }]
@@ -48,7 +49,7 @@ Missing resources (unknown issue number) return a normal 404 and are not violati
 
 Supported REST routes (all under `repos/{owner}/{repo}/`): `issues` (GET list with `state`, `labels`; POST),
 `issues/{n}` (GET, PATCH), `issues/{n}/comments` (GET, POST), `issues/{n}/labels` (POST), `issues/{n}/labels/{name}` (DELETE),
-`pulls` (GET), `pulls/{n}` (GET), `commits/{sha}` (files seeded as `files: [path]`), `commits/{sha}/pulls`, `commits/{sha}/statuses`, `commits/{sha}/status` (GET),
+`pulls` (GET, POST), `pulls/{n}` (GET), `compare/{base}...{head}` (GET; seeded as `compare: { "main...sha": "behind" }`, else 404), `commits/{sha}` (files seeded as `files: [path]`), `commits/{sha}/pulls`, `commits/{sha}/statuses`, `commits/{sha}/status` (GET),
 `statuses/{sha}` (POST). Add routes to `ROUTES` in `fake-github.mjs` (and a test) when a script needs more.
 Supported `gh api` flags: `-X`, `-f`, `-F` (with `key[]=` arrays), `--input` (file or `-`), `-H`, `--paginate`.
 

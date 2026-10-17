@@ -162,10 +162,10 @@ test("R59's table lists the sources this module renders, and their targets", () 
   assert.deepEqual(rows.slice(4), [
     ["`scripts/guard/`, `scripts/lib/`", "`scripts/guard/`, `scripts/lib/`"],
     ["`templates/home-settings.json`", "`.claude/settings.json`"],
-    ["`templates/goal-agent-audit.yml`, `templates/goal-agent-staleness.yml`, `templates/goal-agent-drift-check.yml`", "`.github/workflows/`"],
+    ["`templates/goal-agent-audit.yml`, `templates/goal-agent-staleness.yml`, `templates/goal-agent-drift-check.yml`, `templates/goal-agent-sync.yml`", "`.github/workflows/`"],
   ]);
   assert.deepEqual(GUARD_DIRS, ["scripts/guard/", "scripts/lib/"]);
-  assert.deepEqual(HOME_CALLERS, ["goal-agent-audit.yml", "goal-agent-staleness.yml", "goal-agent-drift-check.yml"]);
+  assert.deepEqual(HOME_CALLERS, ["goal-agent-audit.yml", "goal-agent-staleness.yml", "goal-agent-drift-check.yml", "goal-agent-sync.yml"]);
 });
 
 // ---------------------------------------------------------------- Covered repos
