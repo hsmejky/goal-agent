@@ -5,7 +5,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../templates");
-const load = (f) => readFileSync(join(root, f), "utf8").replace(/^\s*#.*$/gm, "");
+const load = (f) => readFileSync(join(root, f), "utf8").replace(/\r\n/g, "\n").replace(/^\s*#.*$/gm, "");
 const audit = load("goal-agent-audit.yml");
 const stale = load("goal-agent-staleness.yml");
 const drift = load("goal-agent-drift-check.yml");

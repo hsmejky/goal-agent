@@ -44,8 +44,8 @@ function homeRepo(prepare = () => {}) {
   return { home, origin };
 }
 
-function run({ target = TARGET, compare = { [`main...${TARGET}`]: "behind" }, home = homeRepo().home, extra = ["--source", root], env = {} } = {}) {
-  const h = createHarness({ repos: { "hsmejky/goal-agent": { compare }, [HOME]: {} } });
+function run({ target = TARGET, compare = { [`main...${TARGET}`]: "behind" }, home = homeRepo().home, extra = ["--source", root], env = {}, repos = {} } = {}) {
+  const h = createHarness({ repos: { "hsmejky/goal-agent": { compare }, [HOME]: {}, ...repos } });
   cleanups.push(() => h.cleanup());
   const r = h.run(process.execPath, [script, ...extra], { cwd: home, env: { GITHUB_REPOSITORY: HOME, TARGET: target, GH_TOKEN: "t", ...env } });
   return { h, r, home };
@@ -125,6 +125,31 @@ test("the PR body lists the Covered repos' hand steps, the other Home repos, and
   assert.match(body, /starts no workflows/);
   assert.match(body, /close and reopen/i);
   assert.match(body, /Allow GitHub Actions to create pull requests/);
+});
+
+const registry = (...rows) => ({
+  files: { "docs/agents/goal-agents.md": ["# Goal agents", "", "| Goal agent | Label | Home repo |", "|---|---|---|", ...rows.map(([n, h]) => `| \`${n}\` | \`goal-agent:${n}\` | \`${h}\` |`), ""].join("\n") },
+});
+
+test("the PR body names the other Home repos found in the Covered repos' registries, not the synced Home repo", () => {
+  const { h, r } = run({ repos: {
+    "hsmejky/ai-plugin-manager": registry(["goal-steward", HOME], ["other-agent", "hsmejky/other-home"]),
+    "hsmejky/goal-agent": { compare: { [`main...${TARGET}`]: "behind" }, ...registry(["goal-steward", HOME], ["third", "hsmejky/third-home"], ["other-agent", "hsmejky/other-home"]) },
+  } });
+  assert.equal(r.code, 0, r.stderr);
+  const { body } = h.writes.newPulls[0];
+  assert.match(body, /- \[ \] `hsmejky\/other-home` \(covers `hsmejky\/ai-plugin-manager`, `hsmejky\/goal-agent`\).*b{40}/);
+  assert.match(body, /- \[ \] `hsmejky\/third-home` \(covers `hsmejky\/goal-agent`\)/);
+  assert.ok(!body.includes(`\`${HOME}\` (covers`), "the synced Home repo is not listed");
+});
+
+test("a Covered repo whose registry cannot be read gets a line in the PR body and the sync still opens the PR", () => {
+  const { h, r } = run({ repos: { "hsmejky/ai-plugin-manager": registry(["a", "hsmejky/other-home"]) } });
+  assert.equal(r.code, 0, r.stderr);
+  const { body } = h.writes.newPulls[0];
+  assert.match(body, /`hsmejky\/other-home` \(covers/);
+  assert.match(body, /Could not read the registry of hsmejky\/goal-agent: /);
+  assert.ok(!body.includes("Could not read the registry of hsmejky/ai-plugin-manager"));
 });
 
 test("a Home repo already at the target gets no branch and no PR", () => {

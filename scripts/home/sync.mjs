@@ -58,7 +58,43 @@ function coveredRepos(definition) {
   return [...body.matchAll(/^- ([\w.-]+\/[\w.-]+)\s*$/gm)].map((m) => m[1]);
 }
 
-function prBody({ sha, oldPin, covered, drift, formatDrift }) {
+/** The Home repos of a Covered repo's registry table (`| \`name\` | \`label\` | \`owner/repo\` |` rows). */
+export function registryHomes(text) {
+  return [...(text ?? "").matchAll(/^\|\s*`[a-z0-9-]+`\s*\|[^|\n]*\|\s*`([\w.-]+\/[\w.-]+)`\s*\|/gm)].map((m) => m[1]);
+}
+
+/**
+ * The Home repos other than `self` that cover the Covered repos, read from each registry over REST (public
+ * repos). Advisory text for the PR body, so fail-soft: a registry that cannot be read gives a line in
+ * `unread` instead of aborting the sync.
+ */
+export function otherHomeRepos(covered, self, read = readRegistry) {
+  const homes = new Map();
+  const unread = [];
+  for (const repo of covered) {
+    try {
+      for (const home of registryHomes(read(repo))) if (home !== self) homes.set(home, [...(homes.get(home) ?? []), repo]);
+    } catch (e) {
+      unread.push(`${repo}: ${e.message.split("\n")[0]}`);
+    }
+  }
+  return { homes, unread };
+}
+
+function readRegistry(repo) {
+  const file = ghApi(`repos/${repo}/contents/docs/agents/goal-agents.md`);
+  if (typeof file?.content !== "string") throw new Error("registry is not a file");
+  return Buffer.from(file.content, "base64").toString("utf8");
+}
+
+function otherHomesLines({ sha, homes, unread }) {
+  const lines = [...homes].map(([home, repos]) => `- [ ] \`${home}\` (covers ${repos.map((r) => `\`${r}\``).join(", ")}): run the sync there with the same target \`${sha}\`, so every Home repo covering a Covered repo holds the same pin.`);
+  if (lines.length === 0 && unread.length === 0) lines.push("- [ ] No other Home repos found in the Covered repos' registries (`docs/agents/goal-agents.md`).");
+  for (const u of unread) lines.push(`- [ ] Could not read the registry of ${u}: look in its \`docs/agents/goal-agents.md\` for other Home repos, and run the sync in each with the same target \`${sha}\`.`);
+  return lines;
+}
+
+function prBody({ sha, oldPin, covered, others, drift, formatDrift }) {
   const steps = covered.map((repo) => `- [ ] \`${repo}\`: PR that sets the \`uses:\` SHA in \`.github/workflows/goal-agent-review.yml\` and \`.github/workflows/goal-agent-consult.yml\` to \`${sha}\` (two lines each; the registry in \`docs/agents/goal-agents.md\` there lists the Home repos covering it).`);
   return [
     `Brings this Home repo from \`${oldPin ?? "an unknown pin"}\` to goal-agent \`${sha}\` (R59): \`goal-agent-pin\`, every \`uses:\` SHA, the adopted text, the callers, the guard copy and the settings.`,
@@ -70,7 +106,7 @@ function prBody({ sha, oldPin, covered, drift, formatDrift }) {
     "## Hand steps",
     "",
     ...(steps.length ? steps : ["- [ ] No Covered repos found in the definition: check `## Covered repos`."]),
-    `- [ ] The other Home repos sharing these Covered repos: run the sync in each with the same target \`${sha}\`, so every Home repo covering a Covered repo holds the same pin. Find them in each Covered repo's registry (\`docs/agents/goal-agents.md\`).`,
+    ...otherHomesLines({ sha, ...others }),
     "- [ ] Merge the Covered repo PRs and the other Home repos' PRs in one sitting.",
     ...(drift.length ? ["", "## Left for you", "", "The generator cannot resolve these differences from the skeleton; the drift check fails until they are fixed in this PR:", "", "```text", formatDrift(drift), "```"] : []),
   ].join("\n");
@@ -120,11 +156,12 @@ async function sync({ homeDir, target, sourceDir, env }) {
   git(homeDir, ["commit", "-q", "-m", `Re-adopt goal-agent at ${target}`]);
   git(homeDir, ["push", "-q", "origin", branch], { env, token: true });
 
+  const covered = coveredRepos(before ?? "");
   const pr = ghApi(`repos/${env.GITHUB_REPOSITORY}/pulls`, { method: "POST", body: {
     title: `Re-adopt goal-agent at ${target.slice(0, 12)}`,
     head: branch,
     base,
-    body: prBody({ sha: target, oldPin: /^goal-agent-pin:\s*(\S+)/m.exec(before ?? "")?.[1], covered: coveredRepos(before ?? ""), drift, formatDrift: render.formatDrift }),
+    body: prBody({ sha: target, oldPin: /^goal-agent-pin:\s*(\S+)/m.exec(before ?? "")?.[1], covered, others: otherHomeRepos(covered, env.GITHUB_REPOSITORY), drift, formatDrift: render.formatDrift }),
   } });
   console.log(`sync: opened ${pr.html_url ?? `#${pr.number}`}; it starts no workflows, so close and reopen it to start the drift check`);
   return 0;

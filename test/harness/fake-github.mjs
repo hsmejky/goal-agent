@@ -3,7 +3,8 @@
 //
 // State shape (JSON-serialisable, persisted between fake `gh` processes):
 //   { repos: { "owner/name": { issues: {n: issue}, comments: {n: [c]}, pulls: {n: pr},
-//                              commits: {sha: {pulls: [n]}}, statuses: {sha: [status]} } },
+//                              commits: {sha: {pulls: [n]}}, statuses: {sha: [status]},
+//                              files: {path: text} (served by GET contents/<path>) } },
 //     nextId, writes: [...], violations: [...], ghCalls: [argv], fires: [...], curl: {reject?} }
 
 export class Unsupported extends Error {}
@@ -13,7 +14,7 @@ export function newState(seed = {}) {
   const repos = { ...(seed.repos ?? {}) };
   if (seed.repo) repos[seed.repo] = seed;
   for (const [name, r] of Object.entries(repos)) {
-    const repo = { issues: {}, comments: {}, pulls: {}, commits: {}, statuses: {}, compare: { ...(r.compare ?? {}) } };
+    const repo = { issues: {}, comments: {}, pulls: {}, commits: {}, statuses: {}, compare: { ...(r.compare ?? {}) }, files: { ...(r.files ?? {}) } };
     for (const i of r.issues ?? []) {
       repo.issues[i.number] = { state: "open", body: "", user: { login: "someone" }, ...i, labels: [...(i.labels ?? [])] };
       repo.comments[i.number] = (i.comments ?? []).map((c) => ({ id: state.nextId++, user: { login: "someone" }, ...c }));
@@ -113,6 +114,7 @@ const ROUTES = [
   ["GET", /^compare\/(.+)$/, (s, repo, m) => (repo.compare[decodeURIComponent(m[1])] ? ok({ status: repo.compare[decodeURIComponent(m[1])] }) : notFound("compare"))],
   // commits
   ["GET", /^commits\/([^/]+)$/, (s, repo, m) => (repo.commits[m[1]] ? ok({ sha: m[1], files: repo.commits[m[1]].files.map((f) => (typeof f === "string" ? { filename: f } : f)) }) : notFound("commit"))],
+  ["GET", /^contents\/(.+)$/, (s, repo, m) => (m[1] in repo.files ? ok({ type: "file", path: m[1], encoding: "base64", content: Buffer.from(repo.files[m[1]]).toString("base64") }) : notFound("file"))],
   ["GET", /^commits\/([^/]+)\/pulls$/, (s, repo, m) => ok((repo.commits[m[1]]?.pulls ?? []).map((n) => asPull(repo.pulls[n])).filter(Boolean))],
   ["GET", /^commits\/([^/]+)\/statuses$/, (s, repo, m) => ok(repo.statuses[m[1]] ?? [])],
   ["GET", /^commits\/([^/]+)\/status$/, (s, repo, m) => ok({ sha: m[1], ...combined(repo.statuses[m[1]] ?? []) })],

@@ -741,7 +741,7 @@ It is covered once the Home repo PR is merged.
 
 ### Re-adopting a goal-agent change
 
-A change to the adopted text or to `scripts/` or `templates/`. The Home repo's sync workflow (`.github/workflows/goal-agent-sync.yml`, `templates/goal-agent-sync.yml`) does steps 2 to 4 in one PR; the hand steps below are the fallback when it fails.
+A change to the adopted text or to `scripts/` or `templates/`. The Home repo's sync workflow (`.github/workflows/goal-agent-sync.yml`, `templates/goal-agent-sync.yml`) renders the adopted text and the callers, recopies the guard and the settings, and sets `goal-agent-pin` and every `uses:` SHA, all in one PR; the hand steps below are the fallback when it fails.
 
 1. Once per Home repo: turn on the repo setting "Allow GitHub Actions to create pull requests" (Settings, Actions, General). Without it the sync fails when it opens the PR.
 2. Start the sync workflow by hand with one input, the target: a full 40-hex commit SHA that goal-agent's `main` contains. The sync refuses anything else (a short SHA, a branch or tag name, a commit not on `main`). It renders the adopted text, the callers, the guard copy and the settings at the target, sets `goal-agent-pin` and every `uses:` SHA to it, and opens one PR.
