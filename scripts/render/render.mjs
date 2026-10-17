@@ -7,7 +7,13 @@
 //   compareHome({ source, home, name }) -> drift entries
 //   compareCovered({ source, covered }) -> drift entries            (the gate's caller check: two callers)
 //   compareCoveredDrift({ source, covered }) -> drift entries       (the Covered repo drift check: three callers)
+//   renderCovered({ source, covered, pin, agents }) -> files        (a Covered repo's files for its Registry rows)
 //   renderText(markdown, pin), renderCoveredCaller(template, pin, names)
+// `agents` are the Registry rows `{ name, label, home }` in any order; renderCovered sorts them by name. Its result is
+// a map of path to new text holding only the files that change: the three callers at `pin` with one secret pair per
+// agent, the Registry section of docs/agents/goal-agents.md, and the agent lines of the `### Goal agents` block of
+// CLAUDE.md (the block is created from Appendix E's text when missing). The rest of those two files stays byte for
+// byte; a repo written with the result has no Covered repo drift (compareCoveredDrift).
 // A drift entry is { item, file, line, expected, actual }: `line` is 1-based in the compared file (null when the
 // entry is about the whole file), and `expected` or `actual` is null when that side has no such line.
 //
@@ -93,12 +99,13 @@ export function renderText(markdown, pin, defs = new Map()) {
 
 // ---------------------------------------------------------------- sources in the design
 
-/** The body of the first fenced block of exactly `fence` backticks, tagged `markdown`, in `section`. */
-function fencedBlock(design, heading, fence) {
+/** The body of the `nth` (0-based) fenced block of exactly `fence` backticks, tagged `markdown`, under `heading`. */
+function fencedBlock(design, heading, fence, nth = 0) {
   const lines = design.split("\n");
   const start = lines.findIndex((l) => l.startsWith(heading));
   if (start < 0) throw new Error(`the design has no "${heading}"`);
-  const open = lines.findIndex((l, i) => i > start && l === `${fence}markdown`);
+  const opens = lines.map((l, i) => (i > start && l === `${fence}markdown` ? i : -1)).filter((i) => i >= 0);
+  const open = opens[nth] ?? -1;
   const close = lines.findIndex((l, i) => i > open && l === fence);
   if (open < 0 || close < 0) throw new Error(`no ${fence}markdown block under "${heading}"`);
   return lines.slice(open + 1, close).join("\n");
@@ -480,6 +487,119 @@ export function compareCoveredDrift({ source, covered }) {
     ...COVERED_CALLERS.map(sameName),
     { template: COVERED_DRIFT_TEMPLATE, workflow: COVERED_DRIFT_WORKFLOW },
   ]);
+}
+
+// ---------------------------------------------------------------- Covered repo rendering
+
+const REGISTRY_FILE = "docs/agents/goal-agents.md";
+const REGISTRY_HEADING = "## Goal agents in this repo";
+const BLOCK_HEADING = "### Goal agents";
+// Appendix E holds two fenced blocks: the CLAUDE.md block, then the agent docs file.
+const BLOCK_SOURCE = 0;
+const REGISTRY_SOURCE = 1;
+
+/** The CLAUDE.md agent line of a Registry row; AGENT_LINE is derived from it, so they cannot drift apart. */
+const agentLine = (a) => `- \`${a.name}\`: Home repo \`${a.home}\`, label \`${a.label}\`.`;
+const AGENT_LINE = (() => {
+  const field = (k) => `\u0000${k}\u0000`;
+  const escaped = agentLine({ name: field("name"), home: field("home"), label: field("label") }).replace(/[.*+?^${}()|[\]\`]/g, "\$&");
+  return new RegExp(`^${escaped.replace(/\u0000name\u0000/, "[^`]+").replace(/\u0000(home|label)\u0000/g, "[^`]*")}$`);
+})();
+
+const byName = (a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+const trimNewlines = (text) => text.replace(/\n+$/, "");
+
+/** Index of the first line at or after `i` that is not blank. */
+function skipBlank(lines, i) {
+  while (i < lines.length && lines[i].trim() === "") i++;
+  return i;
+}
+
+/** `text` with `section` appended as a paragraph of its own. */
+const appendSection = (text, section) => `${trimNewlines(text)}\n\n${section}\n`;
+
+/** `lines` with the lines [from, to) replaced by `replacement`. */
+const spliceLines = (lines, from, to, replacement) => [...lines.slice(0, from), ...replacement, ...lines.slice(to)];
+
+/** Index of the first line after `from` that opens a heading of `level` or fewer `#`, else the end. */
+function endOfSection(lines, from, level) {
+  const heading = new RegExp(`^#{1,${level}} `);
+  const i = lines.findIndex((l, k) => k > from && heading.test(l));
+  return i < 0 ? lines.length : i;
+}
+
+/** `text` (a Covered repo's agent docs, or null) with the Registry section for `agents` and the rest kept. */
+function renderRegistry(design, text, agents) {
+  // Appendix E's file: a title, the section heading, the table header, one sample row, the paragraph.
+  const canonical = fencedBlock(design, "## Appendix E", "```", REGISTRY_SOURCE).split("\n");
+  const heading = canonical.indexOf(REGISTRY_HEADING);
+  const table = canonical.findIndex((l) => l.startsWith("|"));
+  const rows = agents.map((a) => `| \`${a.name}\` | \`${a.label}\` | \`${a.home}\` |`);
+  const section = trimNewlines([...canonical.slice(heading, table + 2), ...rows, ...canonical.slice(table + 3)].join("\n"));
+  if (text === null) return `${canonical.slice(0, heading).join("\n")}\n${section}\n`;
+  const lines = text.split("\n");
+  const start = lines.indexOf(REGISTRY_HEADING);
+  if (start < 0) return appendSection(text, section);
+  // The section is the heading, the table and the one paragraph directly under it (whatever its text, replaced by
+  // Appendix E's paragraph); when the table is followed by a heading or the end, there is none. Text after is the user's.
+  let end = skipBlank(lines, start + 1);
+  while (end < lines.length && lines[end].startsWith("|")) end++;
+  const paragraphStart = skipBlank(lines, end);
+  if (paragraphStart < lines.length && !/^[#|]/.test(lines[paragraphStart])) {
+    end = paragraphStart;
+    while (end < lines.length && lines[end].trim() !== "") end++;
+  }
+  return spliceLines(lines, start, end, section.split("\n")).join("\n");
+}
+
+/** CLAUDE.md `text` (or null) with the agent lines of its `### Goal agents` block; the block is created when missing. */
+function renderBlock(design, text, agents) {
+  const canonical = fencedBlock(design, "## Appendix E", "```", BLOCK_SOURCE).split("\n");
+  const sample = canonical.findIndex((l) => l.startsWith("- `<name>`"));
+  const lines = agents.map(agentLine);
+  const block = [...canonical.slice(0, sample), ...lines, ...canonical.slice(sample + 1)].join("\n");
+  if (text === null) return `## Agent skills\n\n${block}\n`;
+  const doc = text.split("\n");
+  const start = doc.indexOf(BLOCK_HEADING);
+  if (start >= 0) {
+    const end = endOfSection(doc, start, 3);
+    const firstAgentLine = doc.findIndex((l, k) => k > start && k < end && AGENT_LINE.test(l));
+    const withoutAgentLines = doc.filter((l, k) => k <= start || k >= end || !AGENT_LINE.test(l));
+    if (firstAgentLine >= 0) return spliceLines(withoutAgentLines, firstAgentLine, firstAgentLine, lines).join("\n");
+    // A block without agent lines: they go after its first paragraph.
+    let afterIntro = skipBlank(withoutAgentLines, start + 1);
+    while (afterIntro < withoutAgentLines.length && withoutAgentLines[afterIntro].trim() !== "") afterIntro++;
+    return spliceLines(withoutAgentLines, afterIntro, afterIntro, ["", ...lines]).join("\n");
+  }
+  const skills = doc.indexOf("## Agent skills");
+  if (skills < 0) return appendSection(text, `## Agent skills\n\n${block}`);
+  let end = endOfSection(doc, skills, 2);
+  while (end > skills + 1 && doc[end - 1].trim() === "") end--;
+  return spliceLines(doc, end, end, ["", ...block.split("\n")]).join("\n");
+}
+
+/**
+ * The files of a Covered repo (`covered`) for the Registry rows `agents` ({ name, label, home }, any order) at
+ * `pin`, rendered from `source` (goal-agent at `pin`): a map of path to new text, holding only the files that
+ * differ from `covered`. The three callers carry one secret pair per agent in name order, the Registry table is
+ * rendered in the same order, and the rest of the agent docs and of CLAUDE.md is kept byte for byte. In the agent
+ * docs the Registry section belongs to the renderer: the heading, the table and the one paragraph directly under
+ * the table (replaced by Appendix E's paragraph, whatever its text); anything after that paragraph is the user's.
+ */
+export function renderCovered({ source, covered, pin, agents }) {
+  if (!SHA.test(pin)) throw new Error(`the pin must be a full 40-hex commit SHA, not ${JSON.stringify(pin)}`);
+  const design = source.read(DESIGN);
+  if (design === null) throw new Error(`the source has no ${DESIGN}`);
+  const sorted = [...agents].sort(byName);
+  const files = {
+    [REGISTRY_FILE]: renderRegistry(design, covered.read(REGISTRY_FILE), sorted),
+    "CLAUDE.md": renderBlock(design, covered.read("CLAUDE.md"), sorted),
+  };
+  const callers = [...COVERED_CALLERS.map(sameName), { template: COVERED_DRIFT_TEMPLATE, workflow: COVERED_DRIFT_WORKFLOW }];
+  for (const { template, workflow } of callers) {
+    files[`.github/workflows/${workflow}`] = renderCoveredCaller(source.read(`templates/${template}`), pin, sorted.map((a) => a.name));
+  }
+  return Object.fromEntries(Object.entries(files).filter(([path, text]) => covered.read(path) !== text));
 }
 
 /** Drift entries as text, one line each. */
