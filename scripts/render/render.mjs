@@ -534,20 +534,21 @@ function renderRegistry(design, text, agents) {
   const canonical = fencedBlock(design, "## Appendix E", "```", REGISTRY_SOURCE).split("\n");
   const heading = canonical.indexOf(REGISTRY_HEADING);
   const table = canonical.findIndex((l) => l.startsWith("|"));
-  const canonicalParagraph = canonical.slice(table + 3).join("\n").trim();
   const rows = agents.map((a) => `| \`${a.name}\` | \`${a.label}\` | \`${a.home}\` |`);
   const section = trimNewlines([...canonical.slice(heading, table + 2), ...rows, ...canonical.slice(table + 3)].join("\n"));
   if (text === null) return `${canonical.slice(0, heading).join("\n")}\n${section}\n`;
   const lines = text.split("\n");
   const start = lines.indexOf(REGISTRY_HEADING);
   if (start < 0) return appendSection(text, section);
-  // The section is the heading, the table and Appendix E's paragraph under it; any other text is the user's.
+  // The section is the heading, the table and the one paragraph directly under it (whatever its text, replaced by
+  // Appendix E's paragraph); when the table is followed by a heading or the end, there is none. Text after is the user's.
   let end = skipBlank(lines, start + 1);
   while (end < lines.length && lines[end].startsWith("|")) end++;
   const paragraphStart = skipBlank(lines, end);
-  let paragraphEnd = paragraphStart;
-  while (paragraphEnd < lines.length && lines[paragraphEnd].trim() !== "") paragraphEnd++;
-  if (lines.slice(paragraphStart, paragraphEnd).join("\n").trim() === canonicalParagraph) end = paragraphEnd;
+  if (paragraphStart < lines.length && !/^[#|]/.test(lines[paragraphStart])) {
+    end = paragraphStart;
+    while (end < lines.length && lines[end].trim() !== "") end++;
+  }
   return spliceLines(lines, start, end, section.split("\n")).join("\n");
 }
 
@@ -581,7 +582,9 @@ function renderBlock(design, text, agents) {
  * The files of a Covered repo (`covered`) for the Registry rows `agents` ({ name, label, home }, any order) at
  * `pin`, rendered from `source` (goal-agent at `pin`): a map of path to new text, holding only the files that
  * differ from `covered`. The three callers carry one secret pair per agent in name order, the Registry table is
- * rendered in the same order, and the rest of the agent docs and of CLAUDE.md is kept byte for byte.
+ * rendered in the same order, and the rest of the agent docs and of CLAUDE.md is kept byte for byte. In the agent
+ * docs the Registry section belongs to the renderer: the heading, the table and the one paragraph directly under
+ * the table (replaced by Appendix E's paragraph, whatever its text); anything after that paragraph is the user's.
  */
 export function renderCovered({ source, covered, pin, agents }) {
   if (!SHA.test(pin)) throw new Error(`the pin must be a full 40-hex commit SHA, not ${JSON.stringify(pin)}`);

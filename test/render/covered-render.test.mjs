@@ -71,9 +71,18 @@ test("hand-written text around the Registry section survives byte for byte, trai
   assert.deepEqual(registryNames(out), ["alpha", "zeta"]);
 });
 
-test("a paragraph of the user's right after the Registry table is kept byte for byte, after the canonical paragraph", () => {
+test("a paragraph in older wording directly under the Registry table is replaced by the current one, with no duplicate", () => {
+  const old = `# Goal agents\n\n## Goal agents in this repo\n\n| Goal agent | Label | Home repo |\n|---|---|---|\n| \`gone\` | \`goal-agent:gone\` | \`me/gone-home\` |\n\nAn older wording of the paragraph\nunder the table.\n\n## Other\n\ntext\n`;
+  const out = render(overlay(nothing, { [DOCS]: old }))[DOCS];
+  assert.ok(out.endsWith(`${PARAGRAPH}\n\n## Other\n\ntext\n`));
+  assert.equal(out.split(PARAGRAPH).length - 1, 1);
+  assert.ok(!out.includes("older wording"));
+  assert.deepEqual(registryNames(out), ["alpha", "zeta"]);
+});
+
+test("a paragraph of the user's after the canonical paragraph survives byte for byte", () => {
   const mine = "My own note about\nthese agents.  ";
-  const old = `# Goal agents\n\n## Goal agents in this repo\n\n| Goal agent | Label | Home repo |\n|---|---|---|\n| \`gone\` | \`goal-agent:gone\` | \`me/gone-home\` |\n\n${mine}\n\n## Other\n\ntext\n`;
+  const old = `# Goal agents\n\n## Goal agents in this repo\n\n| Goal agent | Label | Home repo |\n|---|---|---|\n| \`gone\` | \`goal-agent:gone\` | \`me/gone-home\` |\n\n${PARAGRAPH}\n\n${mine}\n\n## Other\n\ntext\n`;
   const files = render(overlay(nothing, { [DOCS]: old }));
   assert.ok(files[DOCS].endsWith(`${PARAGRAPH}\n\n${mine}\n\n## Other\n\ntext\n`));
   assert.deepEqual(registryNames(files[DOCS]), ["alpha", "zeta"]);
