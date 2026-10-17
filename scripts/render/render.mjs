@@ -19,7 +19,8 @@ import { isDeepStrictEqual } from "node:util";
 export const DESIGN = "docs/goal-agents-with-engineering-skills.md";
 export const BLOB = "https://github.com/hsmejky/goal-agent/blob";
 export const GUARD_DIRS = ["scripts/guard/", "scripts/lib/"];
-// Directories goal-agent no longer distributes to a Home repo (they run from goal-agent at the pin since #110); a sync removes them. A later target extends the list.
+// Directories goal-agent no longer distributes to a Home repo (they run from goal-agent at the pin
+// since #110); a sync removes them.
 export const RETIRED_DIRS = ["scripts/gate/", "scripts/home/"];
 export const HOME_CALLERS = ["goal-agent-audit.yml", "goal-agent-staleness.yml", "goal-agent-drift-check.yml", "goal-agent-sync.yml"];
 export const COVERED_CALLERS = ["goal-agent-review.yml", "goal-agent-consult.yml"];
@@ -403,7 +404,7 @@ export function adoptFiles({ source, home, name, pin }) {
     for (const f of home.list(dir).filter((f) => !want.includes(f))) files[f] = null;
   }
 
-  for (const dir of RETIRED_DIRS) for (const f of home.list(dir)) files[f] = null;
+  for (const dir of RETIRED_DIRS) for (const f of home.list(dir)) files[f] = null; // retired: removed, never rendered
 
   const template = source.read("templates/home-settings.json");
   const plugins = JSON.parse(home.read(".claude/settings.json") ?? "{}").enabledPlugins;
