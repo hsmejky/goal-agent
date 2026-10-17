@@ -63,6 +63,61 @@ test("a Home repo without the retired directories gets no removal for them", () 
   assert.deepEqual(Object.keys(files).filter((p) => RETIRED_DIRS.some((d) => p.startsWith(d))), []);
 });
 
-test("a Home repo that has not adopted the text yet is refused", () => {
-  assert.throws(() => adoptFiles({ source: current, home: overlay(home, { "docs/agents/goal-agents.md": null }), name: NAME, pin: NEW_PIN }), /first adoption/);
+// A never-synced Home repo holds only its definition, without goal-agent-pin (ADR 0011 points 15 and 16).
+const HOME_REPO = "hsmejky/goal-steward-home";
+const GENERIC = ["CLAUDE.md", "README.md", "memory/README.md", "docs/agents/issue-tracker.md", "docs/agents/triage-labels.md", "docs/agents/domain.md"];
+const definition = home.read(`.claude/agents/${NAME}.md`);
+const bare = overlay(fsTree(join(fixtures, "empty-dir-that-does-not-exist")), {
+  [`.claude/agents/${NAME}.md`]: definition.replace(/^goal-agent-pin:.*\n/m, ""),
+});
+const adopt = (tree = bare, extra = {}) => adoptFiles({ source: current, home: tree, name: NAME, pin: NEW_PIN, homeRepo: HOME_REPO, ...extra });
+
+test("a never-synced Home repo is created: pin, contract, checklists, operations, guard, settings, callers and the generic files", () => {
+  const files = adopt();
+  assert.match(files[`.claude/agents/${NAME}.md`], new RegExp(`^name: ${NAME}\ngoal-agent-pin: ${NEW_PIN}\n`, "m"));
+  const agents = files["docs/agents/goal-agents.md"];
+  assert.match(agents, /^`<name>` in this file is your name, the `name` in your definition\n\(`goal-steward`\)\.$/m);
+  assert.ok(agents.includes("## Checklists") && agents.includes("### Adding a Covered repo"));
+  assert.match(files["docs/agents/issue-tracker.md"], /^## Goal agent operations$/m);
+  assert.match(files["docs/agents/issue-tracker.md"], /`<home>` is this repo, `hsmejky\/goal-steward-home`;/);
+  assert.ok(files[".claude/settings.json"] && files["scripts/guard/rules.mjs"]);
+  assert.ok(Object.keys(files).some((p) => p.startsWith(".github/workflows/")));
+  for (const f of GENERIC) assert.equal(typeof files[f], "string", f);
+});
+
+test("a never-synced Home repo adopted then compared has no drift", () => {
+  const files = adopt();
+  assert.deepEqual(compareHome({ source: current, home: overlay(bare, files), name: NAME }), []);
+});
+
+test("the generic templates substitute only the agent name, the Home repo and the owner", () => {
+  const files = adopt();
+  for (const f of GENERIC) assert.doesNotMatch(files[f], /\{\{/, f);
+  assert.match(files["CLAUDE.md"], /hsmejky\/goal-steward-home/);
+  assert.match(files["README.md"], /goal-steward/);
+});
+
+test("a generic file the Home repo already holds is left untouched, whatever it holds", () => {
+  const held = Object.fromEntries(GENERIC.filter((f) => f !== "docs/agents/issue-tracker.md").map((f) => [f, `mine: ${f}
+`]));
+  const files = adopt(overlay(bare, held));
+  for (const f of Object.keys(held)) assert.equal(Object.hasOwn(files, f), false, f);
+});
+
+test("re-adopting a synced Home repo rewrites none of the generic files", () => {
+  const held = overlay(home, Object.fromEntries(GENERIC.filter((f) => f !== "docs/agents/issue-tracker.md").map((f) => [f, "mine\n"])));
+  const files = adoptFiles({ source: current, home: held, name: NAME, pin: NEW_PIN, homeRepo: HOME_REPO });
+  for (const f of GENERIC.filter((f) => f !== "docs/agents/issue-tracker.md")) assert.equal(Object.hasOwn(files, f), false, f);
+});
+
+test("a tracker doc without the operations section gets the section, with its legend, and keeps the rest", () => {
+  const tracker = "# Issue tracker: mine\n\nOwn text.\n";
+  const files = adopt(overlay(bare, { "docs/agents/issue-tracker.md": tracker }));
+  assert.ok(files["docs/agents/issue-tracker.md"].startsWith(tracker));
+  assert.match(files["docs/agents/issue-tracker.md"], /^## Goal agent operations$/m);
+  assert.deepEqual(compareHome({ source: current, home: overlay(bare, files), name: NAME }), []);
+});
+
+test("a never-synced Home repo adopted without its repo name is refused", () => {
+  assert.throws(() => adopt(bare, { homeRepo: undefined }), /homeRepo/);
 });

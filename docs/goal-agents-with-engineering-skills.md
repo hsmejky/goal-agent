@@ -700,6 +700,7 @@ The workflow is a one-step caller of `hsmejky/goal-agent/.github/actions/consult
 | `scripts/guard/`, `scripts/lib/` | `scripts/guard/`, `scripts/lib/` |
 | `templates/home-settings.json` | `.claude/settings.json` |
 | `templates/goal-agent-audit.yml`, `templates/goal-agent-staleness.yml`, `templates/goal-agent-drift-check.yml`, `templates/goal-agent-sync.yml` | `.github/workflows/` |
+| The generic templates `templates/home-CLAUDE.md`, `home-README.md`, `home-memory-README.md`, `home-issue-tracker.md`, `home-triage-labels.md` and `home-domain.md` | `CLAUDE.md`, `README.md`, `memory/README.md`, `docs/agents/issue-tracker.md`, `triage-labels.md` and `domain.md`: created only when missing and never rewritten; their only substitutions are the agent name, the Home repo and the owner, and the drift check ignores them apart from the sections it owns |
 
 **Substitutions.** Rendering applies these and nothing else; the wording, order and numbering of the rendered text stay as they are here:
 
