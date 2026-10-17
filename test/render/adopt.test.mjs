@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { adoptFiles, compareHome, fsTree, overlay } from "../../scripts/render/render.mjs";
+import { adoptFiles, compareHome, fsTree, overlay, RETIRED_DIRS } from "../../scripts/render/render.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const fixtures = join(root, "test/fixtures");
@@ -49,6 +49,18 @@ test("guard files that the source no longer has are removed (null)", () => {
   const stray = overlay(home, { "scripts/guard/old-rule.mjs": "x" });
   const files = adoptFiles({ source: current, home: stray, name: NAME, pin: NEW_PIN });
   assert.equal(files["scripts/guard/old-rule.mjs"], null);
+});
+
+test("the retired directories a Home repo still holds are removed (null), every file of them", () => {
+  const stale = overlay(home, { "scripts/gate/gate.mjs": "x", "scripts/gate/lib/a.mjs": "x", "scripts/home/sync.mjs": "x" });
+  const files = adoptFiles({ source: current, home: stale, name: NAME, pin: NEW_PIN });
+  for (const f of ["scripts/gate/gate.mjs", "scripts/gate/lib/a.mjs", "scripts/home/sync.mjs"]) assert.equal(files[f], null, f);
+  assert.deepEqual(RETIRED_DIRS, ["scripts/gate/", "scripts/home/"]);
+});
+
+test("a Home repo without the retired directories gets no removal for them", () => {
+  const files = adoptFiles({ source: current, home, name: NAME, pin: NEW_PIN });
+  assert.deepEqual(Object.keys(files).filter((p) => RETIRED_DIRS.some((d) => p.startsWith(d))), []);
 });
 
 test("a Home repo that has not adopted the text yet is refused", () => {
