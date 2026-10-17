@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || exit 0; d=$(mktemp -d) && trap 'rm -rf \"$d\"' EXIT && git archive origin/main scripts | tar -x -C \"$d\" && node \"$d/scripts/guard/guard.mjs\" session-start || exit 2"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || exit 0; d=$(mktemp -d) && trap 'rm -rf \"$d\"' EXIT && git archive origin/main scripts | tar -x -C \"$d\" && node \"$d/scripts/guard/guard.mjs\" pre-tool-use || exit 2"
+          }
+        ]
+      }
+    ]
+  }
+}

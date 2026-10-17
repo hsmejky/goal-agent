@@ -1,0 +1,23 @@
+# Home repo drift check (R59). Install in a Home repo as .github/workflows/goal-agent-drift-check.yml.
+# A thin caller (ADR 0008): the only step is the goal-agent action, which runs scripts/home/drift-check.mjs
+# from the commit named in `uses:`. Replace <goal-agent-pin> with the shared goal-agent-pin (full 40-hex
+# commit SHA on goal-agent's main), the same in every `uses:` line of the repo.
+# On every PR and every push to main: compares the adopted text, the guard copy, the settings and the
+# callers with goal-agent at the pin, and fails on any difference. On a push to main it also opens one issue.
+name: Goal agent drift check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Issues are the only write, on pushes to main; a PR from a fork gets a read-only token and opens nothing.
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hsmejky/goal-agent/.github/actions/home-drift-check@<goal-agent-pin>

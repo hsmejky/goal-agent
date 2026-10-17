@@ -12,19 +12,21 @@ const actionsDir = join(repo, ".github/actions");
 const dirs = existsSync(actionsDir) ? readdirSync(actionsDir).filter((d) => existsSync(join(actionsDir, d, "action.yml"))) : [];
 const code = (name) => readFileSync(join(actionsDir, name, "action.yml"), "utf8").replace(/\r\n/g, "\n").replace(/^\s*#.*$/gm, "");
 
-// Every action under .github/actions, with the one script it runs.
+// Every action under .github/actions, with the one script it runs and the commit of the caller repo it checks
+// out: its default branch, or for the drift check alone the commit under check (ADR 0008, amendment).
 const units = [
-  { dir: "gate", script: "scripts/gate/gate.mjs", token: true },
-  { dir: "consult", script: "scripts/gate/consult.mjs", token: false },
-  { dir: "home-audit", script: "scripts/home/audit.mjs", token: true },
-  { dir: "home-staleness", script: "scripts/home/staleness.mjs", token: true },
+  { dir: "gate", script: "scripts/gate/gate.mjs", token: true, checkout: "default" },
+  { dir: "consult", script: "scripts/gate/consult.mjs", token: false, checkout: "default" },
+  { dir: "home-audit", script: "scripts/home/audit.mjs", token: true, checkout: "default" },
+  { dir: "home-staleness", script: "scripts/home/staleness.mjs", token: true, checkout: "default" },
+  { dir: "home-drift-check", script: "scripts/home/drift-check.mjs", token: true, checkout: "event" },
 ];
 
 test("every action under .github/actions is covered by this table", () => {
   assert.deepEqual([...dirs].sort(), units.map((u) => u.dir).sort());
 });
 
-for (const { dir, script, token } of units) {
+for (const { dir, script, token, checkout } of units) {
   const text = code(dir);
 
   test(`${dir}: a composite action`, () => {
@@ -51,12 +53,14 @@ for (const { dir, script, token } of units) {
     assert.doesNotMatch(text, /\b(git|curl|wget|gh) /);
   });
 
-  test(`${dir}: checks out only the caller repo's default branch, without credentials, and never goal-agent`, () => {
+  const what = checkout === "default" ? "the caller repo's default branch" : "the caller repo's commit under check";
+  test(`${dir}: checks out only ${what}, without credentials, and never goal-agent`, () => {
     const checkouts = text.split(/(?=^\s*- )/m).filter((s) => /uses: actions\/checkout@/.test(s));
     assert.equal(checkouts.length, 1);
     assert.match(checkouts[0], /actions\/checkout@[0-9a-f]{40}/);
     assert.match(checkouts[0], /persist-credentials: false/);
-    assert.match(checkouts[0], /^\s+ref: \$\{\{ github\.event\.repository\.default_branch \}\}$/m);
+    if (checkout === "default") assert.match(checkouts[0], /^\s+ref: \$\{\{ github\.event\.repository\.default_branch \}\}$/m);
+    else assert.doesNotMatch(checkouts[0], /^\s+ref:/m, "the event's own commit: the PR merge commit or the pushed one");
     assert.doesNotMatch(text, /repository:/);
     assert.doesNotMatch(text, /hsmejky\/goal-agent/);
     assert.doesNotMatch(text, /github\.event\.pull_request\.head/);

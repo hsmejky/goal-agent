@@ -12,11 +12,11 @@ The SHA is the shared `goal-agent-pin`: a full commit SHA on goal-agent's `main`
 
 A Covered repo keeps two thin callers (gate and Consultation). A Home repo keeps thin callers for the audit, the staleness check, the drift check and the sync. Each caller holds its trigger, `permissions`, `if`, `concurrency` and `runs-on`, and its job has exactly one step: the `uses:` of the action.
 
-Values handed to an action, as `with:` inputs or as the calling step's `env`, are visible to every step inside the action, and any other step in the caller job would run alongside them. The action therefore does its own checkout of the caller repo (default branch, `persist-credentials: false`, nothing from the PR) and its own Node setup. Its internal steps are goal-agent code plus third-party actions pinned by full SHA and reviewed in goal-agent.
+Values handed to an action, as `with:` inputs or as the calling step's `env`, are visible to every step inside the action, and any other step in the caller job would run alongside them. The action therefore does its own checkout of the caller repo (default branch, `persist-credentials: false`, nothing from the PR; amended, see [Amendments](#amendments)) and its own Node setup. Its internal steps are goal-agent code plus third-party actions pinned by full SHA and reviewed in goal-agent.
 
 Secrets go by explicit name: the calling step's `env` names each agent's `GOAL_AGENT_<NAME>_FIRE_TOKEN` and `GOAL_AGENT_<NAME>_TRIGGER_ID`, one pair per installed agent. GitHub does not document that a calling step's `env` reaches the steps inside a composite action, so [#112][i112] tested it on a live run ([run 38973718004][envrun]): the secret pair and a plain value named in the calling step's `env` reached the action's script step with the same length and SHA-256 as the same secrets read directly, merged with the script step's own `env` (`GH_TOKEN`). The pairs therefore stay in the calling step's `env`, with no declared inputs. Never `secrets: inherit` or `toJSON(secrets)`.
 
-Trust ([R37][r37]) is unchanged: `pull_request_target` runs the caller from the default branch, and the action is fetched at the immutable SHA in that caller and runs nothing from the PR. The audit and staleness actions take no secrets; they use the job's `GITHUB_TOKEN` (`github.token`), with the permissions the caller job grants.
+Trust ([R37][r37]) is unchanged: `pull_request_target` runs the caller from the default branch, and the action is fetched at the immutable SHA in that caller and runs nothing from the PR (amended, see [Amendments](#amendments)). The audit and staleness actions take no secrets; they use the job's `GITHUB_TOKEN` (`github.token`), with the permissions the caller job grants.
 
 This answers [ADR 0006][adr6]'s rejection of "Home repos fetch a pinned version when they run" for these workflows. A full SHA in the `uses:` line is immutable and is reviewed in the caller's PR like any other change, and in a Home repo the audit of `main` ([R50][r50]) sees it too. GitHub fetches the action for an Actions job, not the agent's session, so no code reaches the session by a network fetch.
 
@@ -51,6 +51,10 @@ The caller files are rendered, not hand-copied. `templates/` at the pin holds th
 - A Covered repo's drift is a `uses:` SHA that differs from the shared pin, or a caller that differs from its rendered template. How each is detected, and how a pin bump is synced, is settled in [#114][i114]-[#117][i117].
 - If GitHub cannot fetch the action at the pinned SHA, the job fails and the gate stays red: a loud failure, not a silent fallback.
 - The caller templates, [R59][r59]'s checklists, [R25][r25], [R38][r38], [Appendix D][appd] and [Appendix E][design] change to describe this setup in the tickets that build it. ADRs 0001-0005 and 0007 stay as written; ADR 0007's guard fix still reaches a Home repo by recopying the guard at a new pin.
+
+## Amendments
+
+- **Drift-check checkout of the event commit** ([#114][i114], user decision). The gate and Consultation actions check out only the caller repo's default branch. The Home repo drift-check action (`.github/actions/home-drift-check/`) is the one exception: it checks out the event's commit (the PR's merge commit, or the pushed commit on `main`), because it must compare the files as the PR or push leaves them. The exception holds for that action only, and only while it runs on `pull_request`, never `pull_request_target`, with no secrets, a read-only token on fork PRs, and `persist-credentials: false`, and only reads the checked-out files. It still runs its scripts from `github.action_path` and never checks out goal-agent.
 
 [ctx]: https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#job-context
 [envrun]: https://github.com/hsmejky/goal-agent/actions/runs/38973718004
