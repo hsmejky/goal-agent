@@ -23,7 +23,11 @@ Today nothing opens a Covered repo PR. Setting the `uses:` SHA in `goal-agent-re
 7. `--dry-run` prints, for each repo, what would change and which secrets are missing, and pushes nothing.
 8. goal-agent, a Covered repo of its own, gets its caller PR like any other; `test/gate/own-callers.test.mjs` still holds on it.
 9. A repo that no definition lists any more is outside the Pin move's reach. Removing its callers stays a hand step.
-10. Unchanged:
+10. A Pin move imposes no merge order. No check compares pins across repos: the Home repo drift check compares a Home repo only with its own definition's `goal-agent-pin`, the Covered repo drift check compares the three callers with each other and with the rendering at their own SHA, and the gate's `callerDrift` stays within the Covered repo. The fire sends only the PR URL, and the Consultation fire only the comment URL. So any merge order passes every check, and repos at different pins between merges is a passing state. Between merges a gate at one pin can fire a routine at another, each running its own pinned code. [R59][r59]'s "merge in one sitting" stays as advice, reworded: until every PR of a Pin move is merged, the shared pin is broken.
+11. A goal-agent commit that changes the interface between gate and routine (the marker or status format, the fire payload, the consult comment's shape) must work against the previous pin in both directions: gate at the new pin with routine at the old, and the reverse. goal-agent's own review checks this, not a check across repos.
+12. The report is the detector. Every Pin move run, `--dry-run` included, ends with a per-repo table: the pin on `main`, the open Pin move PR if any, and whether the repo is at the target. A re-run with the same SHA is how the user checks and finishes a partly merged Pin move.
+13. A newer Pin move supersedes an older one. A run to SHA B closes every open `goal-agent-sync-<sha12>` PR for another SHA in each repo it touches, with a comment linking the new PR, so at most two pins are in use: the one on `main` and the target. A repo that already merged A is simply moved on to B.
+14. Unchanged:
     - [R37][r37] (the gate's trust model), including the gate's `callerDrift`.
     - [R45][r45] (the guard runs from the committed copy).
     - The Home repo drift check.
@@ -34,6 +38,12 @@ Today nothing opens a Covered repo PR. Setting the `uses:` SHA in `goal-agent-re
 - **No check before merge; the gate's `callerDrift` catches drift on the next PR.** Rejected. The drift shows only after it is on `main`, and it fails a job rather than the required status.
 - **The gate reads the PR head's callers.** Rejected. It changes what the gate checks out, which R37 and the Map's scope keep fixed.
 - **Separate PRs for the callers and the Registry.** Rejected. Each would fail the drift check until the other merged, because the secret pairs follow from the Registry.
+- **Merge Home repos first.** Rejected. No check depends on order, so it protects nothing.
+- **Merge Covered repos first.** Rejected, for the same reason.
+- **An order the tool enforces**, for example Covered PRs held as drafts until the Home PRs merge. Rejected. No check depends on order, and the hold adds a step for nothing.
+- **A breaking Pin move names a required merge order in its PR bodies.** Rejected. Adjacent-pin compatibility (point 11) removes the need.
+- **The fire carries the pin and the routine refuses a mismatch.** Rejected. It changes the fire path ([R37][r37], [ADR 0003][adr3]), which is outside the Map's scope.
+- **A CI check across repos for mixed pins.** Rejected. It needs the read credential ADR 0009 rejects; the report (point 12) detects it instead.
 
 ## Consequences
 
@@ -43,8 +53,10 @@ Today nothing opens a Covered repo PR. Setting the `uses:` SHA in `goal-agent-re
 - The sync PR body loses its hand step for the Covered repo SHA.
 - `templates/` gains `goal-agent-drift-check.yml` for Covered repos, with an action for it beside the gate and consult actions.
 - `own-callers.test.mjs` covers the third caller.
+- R59 "Re-adoption" step 4 and the message at `scripts/home/sync.mjs:110` change accordingly: the shared pin is broken until every PR of a Pin move is merged. `/to-spec` does this.
 - These changes land through `/to-spec`, with an Appendix D row for the R59 amendment.
 
+[adr3]: 0003-unattended-cross-repo-goal-reviews-fired-by-the-gate.md
 [adr8]: 0008-goal-agent-workflows-run-from-goal-agent-at-the-pinned-sha.md
 [adr9]: https://github.com/hsmejky/goal-agent/blob/adr/roster-and-registry/docs/adr/0009-the-roster-and-the-definitions-are-the-registry-of-record.md
 [adr10]: https://github.com/hsmejky/goal-agent/blob/adr/local-token-path/docs/adr/0010-goal-agent-prs-across-repos-are-opened-locally-with-the-users-token.md
