@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     # One step only: the env below reaches every step in this job's action, and no other step may run beside it.
     steps:
-      - uses: hsmejky/goal-agent/.github/actions/gate@65d90c439774700cb29f7e3ff3be96ccd656473a
+      - uses: hsmejky/goal-agent/.github/actions/gate@1682c8b412fe63d22e635fa3791580c27abbb8a7
         env:
           # One FIRE_TOKEN/TRIGGER_ID pair per installed Goal agent: installing one adds its pair here. Never use
           # toJSON(secrets) or secrets: inherit: the action gets only the pairs named here.
