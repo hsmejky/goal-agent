@@ -761,6 +761,8 @@ A change to the adopted text or to `scripts/` or `templates/` reaches the Home r
 3. The shared pin is broken until every PR of a Pin move is merged. Merge them in any order, in one sitting when you can.
 4. The command ends with a table of every repo: its role, the pin on its `main` and the outcome (PR opened with its link, no change, skipped, or error). A skipped or failed repo makes the exit status non-zero; fix the cause and run the same target again. If the command refuses because the branch `goal-agent-sync-<first 12 of the target>` already exists, an earlier PR for the same target is still open: close it and delete the branch, then run it again.
 
+Until the Pin move also opens the Covered repo PRs (#150), it moves only the Home repos. Set the `uses:` SHA in every Covered repo's callers by hand, as in step 3 below, with the same target, and merge those PRs in the same sitting as the Home repo PRs.
+
 If the Pin move cannot run, by hand:
 
 1. In goal-agent, diff the sources that [R59](#r59) lists under "What re-adoption renders, and where it goes", from the Home repo's current `goal-agent-pin` to the new commit, a full SHA on `main`.

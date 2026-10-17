@@ -209,6 +209,11 @@ test("the Roster in goal-agent's docs lists goal-steward and parses without an u
   assert.deepEqual(parseRoster(readFileSync(join(root, ROSTER_PATH), "utf8")), [{ name: "goal-steward", home: A }]);
 });
 
+test("a hand-edited Roster row with trailing whitespace is read, not skipped", () => {
+  const text = "| Goal agent | Home repo |  \n|---|---| \n| `goal-steward` | `hsmejky/goal-steward-home` |\t \n";
+  assert.deepEqual(parseRoster(text), [{ name: "goal-steward", home: A }]);
+});
+
 test("--dry-run is refused before any read until #152 implements it, and nothing is written", () => {
   const remotes = tmp();
   const a = homeRepo(remotes, A, "goal-steward");

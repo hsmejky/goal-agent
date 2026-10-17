@@ -54,8 +54,8 @@ export function parseRoster(text) {
   const rows = [];
   for (const line of lines.slice(header + 1)) {
     if (!line.startsWith("|")) break;
-    if (/^\|[\s:|-]+\|$/.test(line)) continue;
-    const m = /^\|\s*`([a-z0-9-]+)`\s*\|\s*`([\w.-]+\/[\w.-]+)`\s*\|$/.exec(line);
+    if (/^\|[\s:|-]+\|\s*$/.test(line)) continue;
+    const m = /^\|\s*`([a-z0-9-]+)`\s*\|\s*`([\w.-]+\/[\w.-]+)`\s*\|\s*$/.exec(line);
     rows.push(m ? { name: m[1], home: m[2] } : { unreadable: line });
   }
   return rows;
