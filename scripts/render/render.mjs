@@ -100,8 +100,13 @@ function fencedBlock(design, heading, fence) {
 function checklists(design) {
   const lines = design.split("\n");
   const start = lines.indexOf("### Adding a Covered repo");
-  const last = lines.indexOf("### Checking a Covered repo's gate copy for drift");
-  if (start < 0 || last < 0) throw new Error("the design has no R59 checklists");
+  // Shim: the fixtures are frozen at 043deaa, where the heading was the old title. Drop the old title when the
+  // fixtures are refrozen at a commit that has the new one.
+  const last = [
+    "### Checking a Covered repo's gate copy for drift",
+    "### Checking a Covered repo's callers for drift",
+  ].map((t) => lines.indexOf(t)).find((i) => i >= 0);
+  if (start < 0 || last === undefined) throw new Error("the design has no R59 checklists");
   let i = last + 1;
   while (i < lines.length && lines[i] === "") i++;
   while (i < lines.length && lines[i] !== "") i++;
