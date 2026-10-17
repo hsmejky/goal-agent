@@ -689,7 +689,7 @@ The workflow is a one-step caller of `hsmejky/goal-agent/.github/actions/consult
 <a id="r59"></a>
 **R59. Add or remove a Covered repo, retire a Goal agent, and re-adopt a goal-agent change, by the checklists below. The user works through them, or the user's session on request; the agent does none of the steps.**
 
-**What re-adoption copies, and where it goes.** The adopted sources and their targets in a Home repo:
+**What re-adoption renders, and where it goes.** The adopted sources and their targets in a Home repo:
 
 | Source in goal-agent | Target in the Home repo |
 | --- | --- |
@@ -701,7 +701,7 @@ The workflow is a one-step caller of `hsmejky/goal-agent/.github/actions/consult
 | `templates/home-settings.json` | `.claude/settings.json` |
 | `templates/goal-agent-audit.yml`, `templates/goal-agent-staleness.yml`, `templates/goal-agent-drift-check.yml`, `templates/goal-agent-sync.yml` | `.github/workflows/` |
 
-**Substitutions.** Rendering applies these and nothing else; the wording, order and numbering of the copied text stay as they are here:
+**Substitutions.** Rendering applies these and nothing else; the wording, order and numbering of the rendered text stay as they are here:
 
 - `[Rn](#rn)` becomes `Rn`, a name of a requirement in the design at the pin.
 - Every other link to this document (an appendix, a section) and every reference-style link to a file of goal-agent (an ADR) becomes an inline absolute link at the pin: `https://github.com/hsmejky/goal-agent/blob/<pin>/docs/...`, with the anchor kept. A reference-style link to a URL becomes an inline link to that URL.
@@ -760,7 +760,7 @@ A change to the adopted text or to `scripts/` or `templates/`. The Home repo's s
 
 Hand steps, if the sync cannot run:
 
-1. In goal-agent, diff the sources that [R59](#r59) lists under "What re-adoption copies, and where it goes", from the Home repo's current `goal-agent-pin` to the new commit, a full SHA on `main`.
+1. In goal-agent, diff the sources that [R59](#r59) lists under "What re-adoption renders, and where it goes", from the Home repo's current `goal-agent-pin` to the new commit, a full SHA on `main`.
 2. Home repo PR: apply the differences, that is, recopy the changed guard files and settings, re-render the changed callers and text with the substitutions [R59](#r59) lists, and set `goal-agent-pin` and every `uses:` SHA to the new commit in the same PR. A text-only change bumps the pin too. Merge only when the drift check passes on the PR.
 3. Home repo PRs and Covered repo PRs: as in step 4 of the sync steps.
 
