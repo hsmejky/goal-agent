@@ -1,0 +1,12 @@
+{
+  "name": "goal-agent-trial",
+  "owner": { "name": "hsmejky" },
+  "description": "Throwaway marketplace for goal-agent#101; this branch is never merged.",
+  "plugins": [
+    { "name": "trial-repo", "source": "./trial-plugins/trial-repo" },
+    {
+      "name": "trial-routine",
+      "source": { "source": "git-subdir", "url": "https://github.com/hsmejky/goal-agent.git", "path": "trial-plugins/trial-routine", "sha": "f53d87206fc39751edc14ebe7a8adb5d84baf362" }
+    }
+  ]
+}
