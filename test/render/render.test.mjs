@@ -8,7 +8,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { compareCovered, compareHome, fsTree, GUARD_DIRS, HOME_CALLERS, overlay, registryNames, renderCoveredCaller, renderText } from "../../scripts/render/render.mjs";
+import { compareCovered, compareHome, DESIGN, fsTree, GUARD_DIRS, HOME_CALLERS, overlay, registryNames, renderCoveredCaller, renderSources, renderText } from "../../scripts/render/render.mjs";
 
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), "../fixtures");
 const source = fsTree(join(fixtures, "goal-agent-043deaa"));
@@ -197,4 +197,13 @@ test("a Covered gate caller whose pin is not a full 40-hex SHA is uses drift", (
   const review = ".github/workflows/goal-agent-review.yml";
   const short = overlay(goalAgent, { [review]: goalAgent.read(review).replace(/@[0-9a-f]{40}/, "@main") });
   assert.deepEqual(items(compareCovered({ source: goalAgent, covered: short })), ["uses"]);
+});
+
+test("the checklists are found under the retitled drift heading as well as the old one", () => {
+  const old = "### Checking a Covered repo's gate copy for drift";
+  const text = source.read(DESIGN).split("\n").map((l) => (l === old ? "### Checking a Covered repo's callers for drift" : l)).join("\n");
+  const retitled = overlay(source, { [DESIGN]: text });
+  assert.ok(!text.split("\n").includes(old));
+  const expected = renderSources(source, PIN).checklists.replace(old, "### Checking a Covered repo's callers for drift");
+  assert.equal(renderSources(retitled, PIN).checklists, expected);
 });
