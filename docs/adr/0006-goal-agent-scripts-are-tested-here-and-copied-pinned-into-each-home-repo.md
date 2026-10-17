@@ -1,5 +1,5 @@
 ---
-status: accepted, amended by R25, R59 and ADR 0008
+status: accepted, amended by R25, R59, ADR 0008, ADR 0010 and ADR 0011
 ---
 
 # The guard, gate and Consultation scripts are tested in goal-agent and copied, pinned, into each Home repo
@@ -24,7 +24,12 @@ The guard (the `SessionStart` and `PreToolUse` hooks), the gate and the Consulta
 - **What the pin names, amended by [R25][r25] (issue [#87][i87]).** `goal-agent-pin` names the goal-agent commit or tag that both the Home repo's copied scripts and the adopted text (Appendices A-C of the design and its R59 checklists) came from. The user bumps it whenever either is re-adopted, including when only the text changed and no script did, in the same Home repo PR. This widens "the copies" in the Consequences above to the text as well as the scripts. [R59][r59] has the re-adoption checklist.
 - **A Covered repo's gate copy is shared, amended by [R59][r59] (issue [#94][i94]).** A Covered repo has one copy of `scripts/gate/*.mjs`, and every Goal agent covering it runs that copy. All Home repos covering one Covered repo therefore use one shared `goal-agent-pin`, and the copy is at that pin when it is byte-identical to `scripts/gate/*.mjs` there. A pin bump is one coordinated change: a PR in every Home repo sharing the Covered repo, plus a Covered repo PR only if a file under `scripts/gate/` changed between the old and the new pin. This replaces "pinned per Home repo" for the Covered repo copy. Drift in that copy is checked by diffing it against the source at the shared pin, which is not stored in the Covered repo but read from the `goal-agent-pin` in the definition of each Home repo registered in the Covered repo's `docs/agents/goal-agents.md` (Appendix A); unequal pins are drift. When a Home repo removes the Covered repo, the copy stays at the pin the remaining Home repos share, and goes away with the last one.
 - **Workflows and contract text, amended by [ADR 0008][adr8] (issue [#111][i111]).** ADR 0008's Decision supersedes this ADR for the gate, Consultation, audit and staleness workflows (including the shared gate copy above and the rejected "fetch a pinned version" option, for those workflows) and amends it for the contract text. The guard stays as decided here.
+- **The guard decision stands, backed by a verified answer, amended by [ADR 0010][adr10] and [ADR 0011][adr11] ([#143][i143]).** Those two ADRs change how a pin bump reaches a Home repo (the Pin move, a local command), not what the pin names or where the guard runs from. The plugin route that ADR 0008 left open came back "no" in [#101][i101], as ADR 0008 records, so the guard stays tested here and a committed copy on each Home repo's `origin/main`.
 
+[adr10]: 0010-goal-agent-prs-across-repos-are-opened-locally-with-the-users-token.md
+[adr11]: 0011-a-pin-move-opens-one-caller-pr-per-covered-repo-checked-by-its-own-drift-check.md
+[i101]: https://github.com/hsmejky/goal-agent/issues/101
+[i143]: https://github.com/hsmejky/goal-agent/issues/143
 [adr8]: 0008-goal-agent-workflows-run-from-goal-agent-at-the-pinned-sha.md
 [r25]: ../goal-agents-with-engineering-skills.md#r25
 [r59]: ../goal-agents-with-engineering-skills.md#r59
