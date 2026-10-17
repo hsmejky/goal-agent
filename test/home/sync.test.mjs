@@ -5,7 +5,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -168,9 +168,26 @@ test("a Covered repo whose registry cannot be read gets a line in the PR body an
   assert.ok(!body.includes("Could not read the registry of hsmejky/ai-plugin-manager"));
 });
 
+test("a never-synced Home repo is created by the sync, not refused", () => {
+  const repo = homeRepo((dir) => {
+    const def = join(dir, ".claude/agents/goal-steward.md");
+    const text = readFileSync(def, "utf8").replace(/^goal-agent-pin:.*\n/m, "");
+    for (const entry of readdirSync(dir)) rmSync(join(dir, entry), { recursive: true, force: true });
+    mkdirSync(dirname(def), { recursive: true });
+    writeFileSync(def, text);
+  });
+  const { h, r } = run({ home: repo.home });
+  assert.equal(r.code, 0, r.stderr);
+  assert.equal(h.writes.newPulls.length, 1);
+  const branch = `goal-agent-sync-${TARGET.slice(0, 12)}`;
+  const shown = (p) => git(repo.origin, "show", `${branch}:${p}`);
+  assert.match(shown("CLAUDE.md"), new RegExp(HOME));
+  assert.match(shown("docs/agents/issue-tracker.md"), /^## Goal agent operations$/m);
+});
+
 test("a Home repo already at the target gets no branch and no PR", () => {
   const repo = homeRepo((dir) => {
-    const files = adoptFiles({ source: fsTree(root), home: fsTree(dir), name: "goal-steward", pin: TARGET });
+    const files = adoptFiles({ source: fsTree(root), home: fsTree(dir), name: "goal-steward", pin: TARGET, homeRepo: HOME });
     for (const [p, text] of Object.entries(files)) {
       if (text === null) { rmSync(join(dir, p)); continue; }
       mkdirSync(dirname(join(dir, p)), { recursive: true });
@@ -210,11 +227,3 @@ test("the PR's files pass the drift check once it is started (done-when 3)", () 
   assert.match(c.stdout, /no drift/);
 });
 
-test("a Home repo that has not adopted the text yet is refused with no branch and no PR", () => {
-  const repo = homeRepo((dir) => rmSync(join(dir, "docs/agents/goal-agents.md")));
-  const { h, r } = run({ home: repo.home });
-  assert.equal(r.code, 1);
-  assert.match(r.stderr, /first adoption/);
-  assert.equal(h.writes.newPulls.length, 0);
-  assert.deepEqual(branches(repo.origin), ["main"]);
-});
