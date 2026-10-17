@@ -1,12 +1,12 @@
 ---
-status: proposed
+status: accepted, amended by #141, #142 and #143
 ---
 
 # A Pin move opens one caller PR per Covered repo, checked by its own drift check
 
 The **Pin move**, the one user action that moves every Home repo and Covered repo to a new goal-agent commit, opens one PR in each Covered repo whose callers or Registry differ from the rendering at that commit. A new `pull_request` drift check in each Covered repo, holding no secrets, checks that PR before merge. Decided in [How one action opens the caller PR in every Covered repo][i138], on the [Map][i135] for opening these PRs from one user action.
 
-Today nothing opens a Covered repo PR. Setting the `uses:` SHA in `goal-agent-review.yml` and `goal-agent-consult.yml` is a hand step listed in the sync PR's body ([R59][r59]). The renderer already holds `renderCoveredCaller` and `compareCovered`, but the only check that uses them is the gate's `callerDrift`. The gate checks out the default branch for every event, so it never sees a caller PR's own edits. Its drift result fails a job, not the required status. [ADR 0010][adr10] (proposed) has the user's local `gh` token open every PR the one action opens. [ADR 0009][adr9] (proposed) has each Covered repo's Registry rendered from the definitions that list it.
+Today nothing opens a Covered repo PR. Setting the `uses:` SHA in `goal-agent-review.yml` and `goal-agent-consult.yml` is a hand step listed in the sync PR's body ([R59][r59]). The renderer already holds `renderCoveredCaller` and `compareCovered`, but the only check that uses them is the gate's `callerDrift`. The gate checks out the default branch for every event, so it never sees a caller PR's own edits. Its drift result fails a job, not the required status. [ADR 0010][adr10] has the user's local `gh` token open every PR the one action opens. [ADR 0009][adr9] has each Covered repo's Registry rendered from the definitions that list it.
 
 **Decision.**
 
@@ -75,10 +75,21 @@ Today nothing opens a Covered repo PR. Setting the `uses:` SHA in `goal-agent-re
 - R59 "Re-adoption" step 4 and the message at `scripts/home/sync.mjs:110` change accordingly: the shared pin is broken until every PR of a Pin move is merged. `/to-spec` does this.
 - These changes land through `/to-spec`, with an Appendix D row for the R59 amendment.
 
+## Amendments
+
+- **Merge order and mixed pins during a Pin move, amended by [#141][i141].** Points 10 to 13 and their rejected options are this amendment: no merge order is imposed, a gate and a routine at adjacent pins must work together, the per-repo report is the detector, and a newer Pin move supersedes an older one.
+- **How a Pin move adds a Goal agent, amended by [#142][i142].** Points 14 to 18 and their rejected options are this amendment, including that the Roster is read at goal-agent's `main` (point 1) and that a first adoption is an ordinary Pin move.
+- **The Covered repo drift-check caller has its own template name, amended by [#143][i143].** Points 2 and 4 name `goal-agent-drift-check.yml`, which is also the name of the Home repo drift-check workflow. The two callers have distinct template names in `templates/` and render to the same workflow name. No repo is both a Home repo and a Covered repo, so the two never meet in one repo.
+- **The Covered repo drift check opens no issue on a push to `main`, amended by [#143][i143].** Point 4's check runs on `push` to `main` and fails on drift, and that is all. The gate already fails its job on default-branch drift, and opening an issue would need `issues: write`, which a check that holds no secrets does not need.
+- **The Registry's rows are sorted by agent name, amended by [#143][i143].** Point 2's rendered Registry has a stable order, so that the order of the callers' secret pairs is stable and a re-render produces no change.
+- **The gate's caller check stays on two callers, amended by [#143][i143].** Point 19's `callerDrift` keeps comparing only the gate and Consultation callers. The shared list of Covered callers is not widened for the gate, because the Covered repo drift check (point 4) compares all three.
+- **The Pin move's exit status, amended by [#143][i143].** The command's exit status is 0 only when no repo was skipped or failed. A skipped repo is one with a failed name rule, or a missing Home repo or definition (points 5 and 17).
+- **Supersession deletes the closed PR's branch, amended by [#143][i143].** Point 13's closure of an older SHA's PR also deletes its `goal-agent-sync-<sha12>` branch, and the comment says "no change needed" when the repo is already at the new SHA.
+
 [adr3]: 0003-unattended-cross-repo-goal-reviews-fired-by-the-gate.md
 [adr8]: 0008-goal-agent-workflows-run-from-goal-agent-at-the-pinned-sha.md
-[adr9]: https://github.com/hsmejky/goal-agent/blob/adr/roster-and-registry/docs/adr/0009-the-roster-and-the-definitions-are-the-registry-of-record.md
-[adr10]: https://github.com/hsmejky/goal-agent/blob/adr/local-token-path/docs/adr/0010-goal-agent-prs-across-repos-are-opened-locally-with-the-users-token.md
+[adr9]: 0009-the-roster-and-the-definitions-are-the-registry-of-record.md
+[adr10]: 0010-goal-agent-prs-across-repos-are-opened-locally-with-the-users-token.md
 [r37]: ../goal-agents-with-engineering-skills.md#r37
 [r42]: ../goal-agents-with-engineering-skills.md#r42
 [r45]: ../goal-agents-with-engineering-skills.md#r45
@@ -86,4 +97,6 @@ Today nothing opens a Covered repo PR. Setting the `uses:` SHA in `goal-agent-re
 [r59]: ../goal-agents-with-engineering-skills.md#r59
 [i135]: https://github.com/hsmejky/goal-agent/issues/135
 [i138]: https://github.com/hsmejky/goal-agent/issues/138
+[i141]: https://github.com/hsmejky/goal-agent/issues/141
 [i142]: https://github.com/hsmejky/goal-agent/issues/142
+[i143]: https://github.com/hsmejky/goal-agent/issues/143

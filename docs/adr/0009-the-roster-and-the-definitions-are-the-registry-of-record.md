@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted, amended by ADR 0011
 ---
 
 # The Roster and the definitions are the record; each Registry is rendered from them
@@ -20,4 +20,11 @@ Which Goal agents exist, and which repos each covers, is recorded in two places 
 - The sync's `registryHomes`, which found the other Home repos through the Registries to list their sync steps, retires with that checklist.
 - goal-steward's `registries` Watched source stays valid; adding the Roster to it is goal-steward's Definition proposal to make.
 
+## Amendments
+
+- **The Roster is read at goal-agent's `main`, amended by [ADR 0011][adr11] point 1 ([#142][i142], [#143][i143]).** A Pin move reads the Roster at goal-agent's `main`, not at the target commit, so a new Roster row takes effect without moving the shared pin. The Roster is a hand-edited Markdown table with the header `| Goal agent | Home repo |`, one row per Goal agent (a backticked name and a backticked `owner/repo`). Other text in the file is ignored, and a row the parser cannot read is skipped and reported. The Registry's rows are sorted by agent name, so that the order of the callers' secret pairs is stable.
+
+[adr11]: adr\0011-a-pin-move-opens-one-caller-pr-per-covered-repo-checked-by-its-own-drift-check.md
+[i142]: https://github.com/hsmejky/goal-agent/issues/142
+[i143]: https://github.com/hsmejky/goal-agent/issues/143
 [i137]: https://github.com/hsmejky/goal-agent/issues/137

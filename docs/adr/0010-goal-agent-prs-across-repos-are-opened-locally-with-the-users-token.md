@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted, amended by ADR 0011
 ---
 
 # Goal agent PRs across repos are opened locally with the user's token
@@ -31,7 +31,7 @@ Running `sync.mjs` locally with the user's `gh` token opened [goal-steward-home 
 4. A PR opened this way starts its workflows, so R59 sync step 3 (close and reopen to start the drift check) goes away.
 5. Unchanged: [R37][r37] (the gate's trust model), [R45][r45] (the guard runs from the committed copy), [ADR 0008][adr8]'s literal shared pin, and the drift check.
 
-This amends the "Sync action renders from the target commit" amendment of ADR 0008, which has the sync action push with `GITHUB_TOKEN`. [ADR 0009][adr9] (proposed, on its branch) is not affected.
+This amends the "Sync action renders from the target commit" amendment of ADR 0008, which has the sync action push with `GITHUB_TOKEN`. [ADR 0009][adr9] is not affected.
 
 ## Considered Options
 
@@ -46,8 +46,14 @@ This amends the "Sync action renders from the target commit" amendment of ADR 00
 - PRs are authored by the user's account.
 - What changes: R59's sync steps, the Section 3 table line that says the sync opens its PR with `GITHUB_TOKEN`, the sync template comment, and the tests asserting the dispatch (`test/home/workflow.test.mjs`). These changes land through `/to-spec`, with an Appendix D row for the R59 amendment.
 
+## Amendments
+
+- **The Home repo comes from the Roster, amended by [ADR 0011][adr11] point 1 ([#143][i143]).** Decision point 2 has the Home repo come from an argument. The Pin move instead walks the Roster ([ADR 0009][adr9]) and opens the Home repo sync PRs and the Covered repo PRs in one run. The token still comes from `gh auth token`, and the rest of this ADR stands.
+
+[adr11]: adr\0011-a-pin-move-opens-one-caller-pr-per-covered-repo-checked-by-its-own-drift-check.md
+[i143]: https://github.com/hsmejky/goal-agent/issues/143
 [adr8]: 0008-goal-agent-workflows-run-from-goal-agent-at-the-pinned-sha.md
-[adr9]: https://github.com/hsmejky/goal-agent/blob/adr/roster-and-registry/docs/adr/0009-the-roster-and-the-definitions-are-the-registry-of-record.md
+[adr9]: 0009-the-roster-and-the-definitions-are-the-registry-of-record.md
 [r37]: ../goal-agents-with-engineering-skills.md#r37
 [r38]: ../goal-agents-with-engineering-skills.md#r38
 [r45]: ../goal-agents-with-engineering-skills.md#r45
