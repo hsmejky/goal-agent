@@ -4,6 +4,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHarness } from "./index.mjs";
 
+const b64 = (s) => Buffer.from(s).toString("base64");
+
 const SHELL = `const {spawnSync}=require("node:child_process");
 const sh=(c,o={})=>{const r=spawnSync(c,{shell:true,encoding:"utf8",...o});process.stdout.write(r.stdout);process.stderr.write(r.stderr);if(r.status)process.exitCode=r.status;};`;
 
@@ -143,8 +145,6 @@ sh("gh api repos/o/r/pulls -f title=T -f head=br -f base=main -f body=B");`);
   h.cleanup();
 });
 
-const b64 = (s) => Buffer.from(s).toString("base64");
-
 test("contents at a ref answers seeded text base64-encoded and 404s a missing file or ref", () => {
   const h = createHarness({ repos: { "o/r": { files: { "a.md": "default" }, refFiles: { abc: { "a.md": "at abc" } } } } });
   const script = h.writeScript("ct.cjs", `${SHELL}
@@ -158,6 +158,18 @@ sh("gh api repos/o/r/contents/a.md?ref=zzz || echo ref-refused");`);
   assert.equal(JSON.parse(lines[0]).content, b64("at abc"));
   assert.equal(JSON.parse(lines[1]).content, b64("default"));
   assert.match(r.stdout, /missing-refused/);
+  assert.match(r.stdout, /ref-refused/);
+  h.cleanup();
+});
+
+test("contents at a ref 404s when the repo seeds no refFiles at all; without a ref it serves files", () => {
+  const h = createHarness({ repos: { "o/r": { files: { "a.md": "default" } } } });
+  const script = h.writeScript("ct2.cjs", `${SHELL}
+sh("gh api repos/o/r/contents/a.md");
+sh("gh api repos/o/r/contents/a.md?ref=abc || echo ref-refused");`);
+  const r = h.run(process.execPath, [script]);
+  assert.equal(r.code, 0, r.stderr);
+  assert.equal(JSON.parse(r.stdout.split("\n")[0]).content, b64("default"));
   assert.match(r.stdout, /ref-refused/);
   h.cleanup();
 });
@@ -182,6 +194,23 @@ sh("gh api repos/o/empty/pulls?head=o:pin/aaa");`);
   h.cleanup();
 });
 
+test("pulls head filter needs owner and branch: a bare branch or another owner matches nothing", () => {
+  const h = createHarness({ repos: { "o/r": { pulls: [{ number: 1, head_ref: "pin/aaa" }, { number: 2, head_ref: "pin/aaa", head_owner: "fork" }] } } });
+  const script = h.writeScript("hd.cjs", `${SHELL}
+sh("gh api repos/o/r/pulls?head=o:pin/aaa");
+sh("gh api repos/o/r/pulls?head=fork:pin/aaa");
+sh("gh api repos/o/r/pulls?head=pin/aaa");
+sh("gh api repos/o/r/pulls?head=nobody:pin/aaa");`);
+  const r = h.run(process.execPath, [script]);
+  assert.equal(r.code, 0, r.stderr);
+  const [own, fork, bare, other] = r.stdout.trim().split("\n").map((l) => JSON.parse(l).map((p) => p.number));
+  assert.deepEqual(own, [1]);
+  assert.deepEqual(fork, [2]);
+  assert.deepEqual(bare, []);
+  assert.deepEqual(other, []);
+  h.cleanup();
+});
+
 test("closing a pull request is recorded as a write and shows in the state", () => {
   const h = createHarness({ repos: { "o/r": { pulls: [{ number: 4, head_ref: "pin/aaa" }] } } });
   const script = h.writeScript("cl.cjs", `${SHELL}
@@ -192,6 +221,23 @@ sh("gh api -X PATCH repos/o/r/pulls/99 -f state=closed || echo nf");`);
   assert.equal(h.state.repos["o/r"].pulls[4].state, "closed");
   assert.deepEqual(h.writes.closedPulls, [{ repo: "o/r", number: 4 }]);
   assert.deepEqual(h.writes.all.map((w) => w.kind), ["pull-close"]);
+  h.cleanup();
+});
+
+test("patching a pull request applies only state, title and body; closing twice records one close", () => {
+  const h = createHarness({ repos: { "o/r": { pulls: [{ number: 4, head_ref: "pin/aaa", title: "old" }] } } });
+  const script = h.writeScript("pp.cjs", `${SHELL}
+sh("gh api -X PATCH repos/o/r/pulls/4 -f state=closed -f title=new -f merged=true -f number=99 -f base=evil");
+sh("gh api -X PATCH repos/o/r/pulls/4 -f state=closed");`);
+  const r = h.run(process.execPath, [script]);
+  assert.equal(r.code, 0, r.stderr);
+  const pr = h.state.repos["o/r"].pulls[4];
+  assert.equal(pr.state, "closed");
+  assert.equal(pr.title, "new");
+  assert.equal(pr.merged, false);
+  assert.equal(pr.number, 4);
+  assert.equal(pr.base, undefined);
+  assert.deepEqual(h.writes.closedPulls, [{ repo: "o/r", number: 4 }]);
   h.cleanup();
 });
 
@@ -217,28 +263,47 @@ sh("gh api repos/o/none/labels");`);
   h.cleanup();
 });
 
-test("a workflow's event policy answers when seeded and 404s when absent", () => {
-  const h = createHarness({ repos: { "o/r": { eventPolicies: { "goal-agent-review.yml": { events: ["issue_comment"] } } } } });
-  const script = h.writeScript("ep.cjs", `${SHELL}
-sh("gh api repos/o/r/actions/workflows/goal-agent-review.yml/event-policy");
-sh("gh api repos/o/r/actions/workflows/other.yml/event-policy || echo absent");`);
-  const r = h.run(process.execPath, [script]);
-  assert.equal(r.code, 0, r.stderr);
-  assert.deepEqual(JSON.parse(r.stdout.split("\n")[0]), { workflow: "goal-agent-review.yml", events: ["issue_comment"] });
-  assert.match(r.stdout, /absent/);
+test("repo Actions policies list as the real API does when seeded and are an empty list otherwise", () => {
+  const policy = {
+    name: "goal-agent-review events", target: "actions", source_type: "Repository", source: "o/r", enforcement: "active",
+    conditions: { workflow_path: { include: [".github/workflows/goal-agent-review.yml"], exclude: [] } },
+    rules: [{ type: "restrict_action_events", parameters: { allowed_events: ["pull_request_target", "issue_comment", "issues"] } }],
+  };
+  const h = createHarness({ repos: { "o/r": { actionsPolicies: [policy] }, "o/none": {} } });
+  const script = h.writeScript("ap.cjs", `${SHELL}
+sh("gh api repos/o/r/actions/policies");
+sh("gh api repos/o/none/actions/policies");
+sh("gh api repos/o/r/actions/workflows/goal-agent-review.yml/event-policy");`);
+  const r = h.run(process.execPath, [script], { allowViolations: true });
+  const [list, none] = r.stdout.trim().split("\n").map((l) => JSON.parse(l));
+  assert.equal(list.total_count, 1);
+  assert.equal(typeof list.policies[0].id, "number");
+  assert.deepEqual({ ...list.policies[0], id: undefined }, { ...policy, id: undefined });
+  assert.deepEqual(none, { total_count: 0, policies: [] });
+  assert.equal(h.violations.length, 1, "the per-workflow path is not a real route");
   h.cleanup();
 });
 
+// Prints: no-token | no-header (no X-Oauth-Scopes, as a fine-grained token) | empty | workflow | plain
 const TOKEN_PROBE = `${SHELL}
-const t=spawnSync("gh auth token",{shell:true,encoding:"utf8"});
-if(t.status){console.log("no-token");}
-else{const u=spawnSync("gh api -i user",{shell:true,encoding:"utf8"});
-const m=/^x-oauth-scopes:\\s*(.*)$/im.exec(u.stdout);
-console.log((m?m[1].split(",").map((s)=>s.trim()):[]).includes("workflow")?"workflow":"plain");}`;
+const token = spawnSync("gh auth token", { shell: true, encoding: "utf8" });
+if (token.status) {
+  console.log("no-token");
+} else {
+  const user = spawnSync("gh api -i user", { shell: true, encoding: "utf8" });
+  const header = /^x-oauth-scopes:[ \t]*(.*)$/im.exec(user.stdout);
+  if (!header) console.log("no-header");
+  else {
+    const scopes = header[1].split(",").map((s) => s.trim()).filter(Boolean);
+    console.log(scopes.length === 0 ? "empty" : scopes.includes("workflow") ? "workflow" : "plain");
+  }
+}`;
 
 for (const [label, seed, want] of [
   ["with the workflow scope", { token: { value: "tok-1", scopes: ["repo", "workflow"] } }, "workflow"],
   ["without the workflow scope", { token: { value: "tok-2", scopes: ["repo"] } }, "plain"],
+  ["with an empty scope list", { token: { value: "tok-3", scopes: [] } }, "empty"],
+  ["with no scopes header (fine-grained)", { token: { value: "tok-4" } }, "no-header"],
   ["absent", {}, "no-token"],
 ]) {
   test(`a script tells a seeded token ${label} apart through gh auth token and gh api -i user`, () => {

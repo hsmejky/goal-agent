@@ -6,10 +6,13 @@
 //                              commits: {sha: {pulls: [n]}}, statuses: {sha: [status]},
 //                              files: {path: text} (served by GET contents/<path>),
 //                              refFiles: {ref: {path: text}} (served by GET contents/<path>?ref=<ref>),
-//                              secrets: [name] (names only), labels: [name], eventPolicies: {workflow file: policy} } },
-//     token: {value, scopes: [..]} | null, nextId, writes: [...], violations: [...], ghCalls: [argv], fires: [...], curl: {reject?} }
+//                              secrets: [name] (names only), labels: [name],
+//                              actionsPolicies: [policy] (GET actions/policies, shape of GitHub's "Actions Policy") } },
+//     token: {value, scopes?: [..]} | null (no `scopes` = a fine-grained token: no X-Oauth-Scopes header), nextId, writes: [...], violations: [...], ghCalls: [argv], fires: [...], curl: {reject?} }
 
 export class Unsupported extends Error {}
+
+const nameOf = (x) => (typeof x === "string" ? x : x.name);
 
 export function newState(seed = {}) {
   const state = { repos: {}, token: seed.token ?? null, nextId: 1000, writes: [], violations: [], ghCalls: [], fires: [], curl: seed.curl ?? {} };
@@ -17,17 +20,18 @@ export function newState(seed = {}) {
   if (seed.repo) repos[seed.repo] = seed;
   for (const [name, r] of Object.entries(repos)) {
     const repo = { issues: {}, comments: {}, pulls: {}, commits: {}, statuses: {}, compare: { ...(r.compare ?? {}) }, files: { ...(r.files ?? {}) }, refFiles: { ...(r.refFiles ?? {}) },
-      secrets: (r.secrets ?? []).map((x) => (typeof x === "string" ? x : x.name)), // values are dropped on seeding: the fake never holds one
-      labels: (r.labels ?? []).map((l) => (typeof l === "string" ? l : l.name)), eventPolicies: { ...(r.eventPolicies ?? {}) } };
+      secrets: (r.secrets ?? []).map(nameOf), // values are dropped on seeding: the fake never holds one
+      labels: (r.labels ?? []).map(nameOf), actionsPolicies: (r.actionsPolicies ?? []).map((p) => ({ id: state.nextId++, ...p })) };
     for (const i of r.issues ?? []) {
       repo.issues[i.number] = { state: "open", body: "", user: { login: "someone" }, ...i, labels: [...(i.labels ?? [])] };
       repo.comments[i.number] = (i.comments ?? []).map((c) => ({ id: state.nextId++, user: { login: "someone" }, ...c }));
       delete repo.issues[i.number].comments;
     }
     for (const p of r.pulls ?? []) {
-      repo.pulls[p.number] = { state: "open", merged: false, title: "", body: "", ...p, head: { sha: p.head_sha ?? p.head?.sha, ref: p.head_ref ?? p.head?.ref ?? "branch" } };
+      repo.pulls[p.number] = { state: "open", merged: false, title: "", body: "", ...p, head: headOf(name, p) };
       delete repo.pulls[p.number].head_sha;
       delete repo.pulls[p.number].head_ref;
+      delete repo.pulls[p.number].head_owner;
     }
     for (const c of r.commits ?? []) repo.commits[c.sha] = { pulls: c.pulls ?? [], files: c.files ?? [] };
     for (const [sha, list] of Object.entries(r.statuses ?? {})) repo.statuses[sha] = list.map((s) => ({ id: state.nextId++, ...s }));
@@ -36,11 +40,18 @@ export function newState(seed = {}) {
   return state;
 }
 
+// head as the real API shows it: label is "owner:branch"; a PR from the repo itself has the repo owner
+function headOf(repoName, p) {
+  const ref = p.head_ref ?? p.head?.ref ?? "branch";
+  const owner = p.head_owner ?? p.head?.user?.login ?? repoName.split("/")[0];
+  return { sha: p.head_sha ?? p.head?.sha, ref, label: `${owner}:${ref}`, user: { login: owner } };
+}
+
 const notFound = (what) => ({ status: 404, body: { message: "Not Found", documentation_url: "https://docs.github.com/rest", detail: what } });
 const ok = (body, status = 200) => ({ status, body });
 
 const asIssue = (i) => ({ ...i, labels: i.labels.map((name) => ({ name })) });
-const asPull = (p) => ({ ...p, labels: (p.labels ?? []).map((l) => (typeof l === "string" ? { name: l } : l)) });
+const asPull = (p) => ({ ...p, labels: (p.labels ?? []).map((l) => ({ name: nameOf(l) })) });
 
 function combined(list) {
   const latest = new Map();
@@ -104,20 +115,21 @@ const ROUTES = [
   // pulls
   ["GET", /^pulls$/, (s, repo, _m, { query }) => {
     const want = query.state ?? "open";
-    const head = query.head ? String(query.head).replace(/^[^:]*:/, "") : null; // "owner:branch" or "branch"
-    return ok(Object.values(repo.pulls).filter((p) => (want === "all" || p.state === want) && (head === null || p.head.ref === head)).map(asPull));
+    const head = query.head ? String(query.head) : null; // "owner:branch", as the real API wants it; a bare branch matches nothing
+    return ok(Object.values(repo.pulls).filter((p) => (want === "all" || p.state === want) && (head === null || p.head.label === head)).map(asPull));
   }],
+  ["GET", /^pulls\/(\d+)$/, (s, repo, m) => (repo.pulls[m[1]] ? ok(asPull(repo.pulls[m[1]])) : notFound("pull"))],
   ["PATCH", /^pulls\/(\d+)$/, (s, repo, m, { body, name }) => {
     const pr = repo.pulls[m[1]];
     if (!pr) return notFound("pull");
-    Object.assign(pr, body);
-    if (body.state === "closed") record(s, "pull-close", name, { number: Number(m[1]) });
+    const wasOpen = pr.state !== "closed";
+    for (const key of ["state", "title", "body"]) if (key in body) pr[key] = body[key]; // nothing else is editable
+    if (wasOpen && pr.state === "closed") record(s, "pull-close", name, { number: Number(m[1]) });
     return ok(asPull(pr));
   }],
-  ["GET", /^pulls\/(\d+)$/, (s, repo, m) => (repo.pulls[m[1]] ? ok(asPull(repo.pulls[m[1]])) : notFound("pull"))],
   ["POST", /^pulls$/, (s, repo, _m, { body, name }) => {
     const number = s.nextId++;
-    const pr = { number, state: "open", merged: false, title: body.title ?? "", body: body.body ?? "", base: { ref: body.base }, head: { ref: body.head, sha: null }, html_url: `https://github.com/${name}/pull/${number}` };
+    const pr = { number, state: "open", merged: false, title: body.title ?? "", body: body.body ?? "", base: { ref: body.base }, head: headOf(name, { head_ref: body.head.replace(/^[^:]*:/, ""), head_owner: body.head.includes(":") ? body.head.split(":")[0] : undefined }), html_url: `https://github.com/${name}/pull/${number}` };
     repo.pulls[number] = pr;
     record(s, "pull-create", name, { number, title: pr.title, head: body.head, base: body.base, body: pr.body });
     return ok(asPull(pr), 201);
@@ -126,16 +138,16 @@ const ROUTES = [
   ["GET", /^compare\/(.+)$/, (s, repo, m) => (repo.compare[decodeURIComponent(m[1])] ? ok({ status: repo.compare[decodeURIComponent(m[1])] }) : notFound("compare"))],
   // commits
   ["GET", /^commits\/([^/]+)$/, (s, repo, m) => (repo.commits[m[1]] ? ok({ sha: m[1], files: repo.commits[m[1]].files.map((f) => (typeof f === "string" ? { filename: f } : f)) }) : notFound("commit"))],
-  // contents: with `?ref=` and any refFiles seeded, only refFiles[ref] is read (unseeded ref: 404); otherwise `files`
+  // contents: with `?ref=` only refFiles[ref] is read (a ref that is not seeded: 404); without it, `files`
   ["GET", /^contents\/(.+)$/, (s, repo, m, { query }) => {
-    const files = query.ref && Object.keys(repo.refFiles).length ? repo.refFiles[query.ref] ?? {} : repo.files;
+    const files = query.ref ? repo.refFiles[query.ref] ?? {} : repo.files;
     return m[1] in files ? ok({ type: "file", path: m[1], encoding: "base64", content: Buffer.from(files[m[1]]).toString("base64") }) : notFound("file");
   }],
   // names only, as the real API lists them: no route returns a secret value
   ["GET", /^actions\/secrets$/, (s, repo) => ok({ total_count: repo.secrets.length, secrets: repo.secrets.map((name) => ({ name })) })],
   ["GET", /^labels$/, (s, repo) => ok(repo.labels.map((name) => ({ name })))],
-  // event policy of a workflow, seeded as eventPolicies: { "goal-agent-review.yml": {...} }; 404 when absent
-  ["GET", /^actions\/workflows\/([^/]+)\/event-policy$/, (s, repo, m) => (repo.eventPolicies[m[1]] ? ok({ workflow: m[1], ...repo.eventPolicies[m[1]] }) : notFound("event policy"))],
+  // Actions policies (Settings -> Actions -> Policies): the list shape of GitHub's REST "Actions policies" docs
+  ["GET", /^actions\/policies$/, (s, repo) => ok({ total_count: repo.actionsPolicies.length, policies: repo.actionsPolicies })],
   ["GET", /^commits\/([^/]+)\/pulls$/, (s, repo, m) => ok((repo.commits[m[1]]?.pulls ?? []).map((n) => asPull(repo.pulls[n])).filter(Boolean))],
   ["GET", /^commits\/([^/]+)\/statuses$/, (s, repo, m) => ok(repo.statuses[m[1]] ?? [])],
   ["GET", /^commits\/([^/]+)\/status$/, (s, repo, m) => ok({ sha: m[1], ...combined(repo.statuses[m[1]] ?? []) })],
