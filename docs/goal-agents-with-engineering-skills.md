@@ -1224,6 +1224,7 @@ For readers of the decision tickets: these decisions were amended by later ticke
 | [R25](#r25) and [ADR 0006][50]: `goal-agent-pin` records the goal-agent commit or tag the Home repo's copied scripts came from. | It also names the source of the adopted text (Appendices A-C and the R59 checklists), and is bumped whenever either is re-adopted, text-only changes included ([R25](#r25), [R59](#r59)); since [ADR 0008][56] it is also the SHA in every `uses:` line (next rows). | [goal-agent-pin records only the scripts' source; the Home contract's adopted design version is unrecorded][54] |
 | [ADR 0006][50]: copies are pinned per Home repo, and drift is detected by comparing a copy with its pin. | All Home repos covering one Covered repo use one `goal-agent-pin`, which the Covered repo follows ([R59](#r59)); the shared gate copy this row first described is gone (next row). | [Which pin does the shared gate copy follow when two Home repos cover one repo?][55] |
 | [ADR 0006][50]: the guard, gate, Consultation, audit and staleness scripts are copied into the Home repo (the gate and Consultation scripts also into each Covered repo) and pinned by `goal-agent-pin`; the user adopts and edits the contract text. | The gate, Consultation, audit and staleness run as goal-agent composite actions, called by one-step workflows at the shared pin, a full commit SHA on goal-agent's `main`, literally equal in every `uses:` line and every Home repo covering a Covered repo, with no Dependabot or Renovate bumps; the contract text and the callers are rendered from goal-agent at the pin and checked; only the guard (`scripts/guard/`, `scripts/lib/`) stays a committed copy ([R1](#r1), [R25](#r25), [R37](#r37), [R59](#r59)). | [ADR 0008][56]; [Distribute Goal agent workflows and contract text from goal-agent at the pin][57] |
+| [ADR 0006][50] and [ADR 0008][56]: the plugin route (a plugin carrying the guard and the contract) is deferred to [#101][58]. | Closed: a cloud routine installs no plugin and runs no plugin hook, so the plugin route does not work and the guard stays a committed copy ([R45](#r45), [ADR 0006][50] as kept by [ADR 0008][56]). | [Research: can a cloud routine load a Goal agent's guard and contract from a Claude Code plugin?][58] |
 
 ## Appendix E: Covered repo files
 
@@ -1357,3 +1358,4 @@ sweep.
 [55]: https://github.com/hsmejky/goal-agent/issues/94
 [56]: adr/0008-goal-agent-workflows-run-from-goal-agent-at-the-pinned-sha.md
 [57]: https://github.com/hsmejky/goal-agent/issues/110
+[58]: https://github.com/hsmejky/goal-agent/issues/101
