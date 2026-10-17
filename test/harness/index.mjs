@@ -66,9 +66,7 @@ export function createHarness(seed = {}) {
       for (const k of Object.keys(base)) if (k.toLowerCase() === "path") delete base[k];
       const childEnv = { ...base, ...env, PATH: [shimDir, process.env.PATH ?? process.env.Path ?? ""].join(delimiter), FAKE_GH_STATE: stateFile };
       const r = spawnSync(command, args, { env: childEnv, input, cwd, encoding: "utf8" });
-      // A child that exits without reading `input` closes the pipe (EPIPE; EOF on Windows) although its status is valid.
-      const closedPipe = (r.error?.code === "EPIPE" || r.error?.code === "EOF") && r.status !== null;
-      if (r.error && !closedPipe) throw r.error;
+      if (r.error) throw r.error;
       const result = { code: r.status, stdout: r.stdout, stderr: r.stderr };
       const violations = read().violations;
       if (violations.length && !allowViolations) {
