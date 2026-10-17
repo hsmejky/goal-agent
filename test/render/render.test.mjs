@@ -8,7 +8,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { compareCovered, compareCoveredDrift, compareHome, COVERED_DRIFT_TEMPLATE, COVERED_DRIFT_WORKFLOW, DESIGN, fsTree, GUARD_DIRS, HOME_CALLERS, overlay, registryNames, renderCoveredCaller, renderSources, renderText } from "../../scripts/render/render.mjs";
+import { compareCovered, compareCoveredDrift, compareHome, COVERED_DRIFT_TEMPLATE, COVERED_DRIFT_WORKFLOW, DESIGN, fsTree, GUARD_DIRS, HOME_CALLERS, HOME_GENERIC, overlay, registryNames, renderCoveredCaller, renderSources, renderText } from "../../scripts/render/render.mjs";
 
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), "../fixtures");
 const source = fsTree(join(fixtures, "goal-agent-043deaa"));
@@ -163,7 +163,9 @@ test("R59's table lists the sources this module renders, and their targets", () 
     ["`scripts/guard/`, `scripts/lib/`", "`scripts/guard/`, `scripts/lib/`"],
     ["`templates/home-settings.json`", "`.claude/settings.json`"],
     ["`templates/goal-agent-audit.yml`, `templates/goal-agent-staleness.yml`, `templates/goal-agent-drift-check.yml`, `templates/goal-agent-sync.yml`", "`.github/workflows/`"],
+    ["The generic templates `templates/home-CLAUDE.md`, `home-README.md`, `home-memory-README.md`, `home-issue-tracker.md`, `home-triage-labels.md` and `home-domain.md`", "`CLAUDE.md`, `README.md`, `memory/README.md`, `docs/agents/issue-tracker.md`, `triage-labels.md` and `domain.md`: created only when missing and never rewritten; their only substitutions are the agent name, the Home repo and the owner, and the drift check ignores them apart from the sections it owns"],
   ]);
+  assert.deepEqual(HOME_GENERIC.map(([t]) => t), ["home-CLAUDE.md", "home-README.md", "home-memory-README.md", "home-issue-tracker.md", "home-triage-labels.md", "home-domain.md"]);
   assert.deepEqual(GUARD_DIRS, ["scripts/guard/", "scripts/lib/"]);
   assert.deepEqual(HOME_CALLERS, ["goal-agent-audit.yml", "goal-agent-staleness.yml", "goal-agent-drift-check.yml", "goal-agent-sync.yml"]);
 });

@@ -9,6 +9,12 @@
 //   compareCoveredDrift({ source, covered }) -> drift entries       (the Covered repo drift check: three callers)
 //   renderCovered({ source, covered, pin, agents }) -> files        (a Covered repo's files for its Registry rows)
 //   renderText(markdown, pin), renderCoveredCaller(template, pin, names)
+//   adoptFiles({ source, home, name, pin, homeRepo }) -> files      (a Home repo adopted at `pin`, a first adoption too;
+//                                                                  `homeRepo` is `owner/repo`, always required)
+// adoptFiles creates what a never-synced Home repo lacks (ADR 0011 points 15 and 16): the pin line, the contract,
+// the checklists and the operations section with their legends, and the generic files of HOME_GENERIC from
+// templates/home-*. A template substitutes only {{name}}, {{home}} and {{owner}}; a generic file the Home repo
+// holds, with any content, is never rewritten. A Home repo needs only its definition; none is refused.
 // `agents` are the Registry rows `{ name, label, home }` in any order; renderCovered sorts them by name. Its result is
 // a map of path to new text holding only the files that change: the three callers at `pin` with one secret pair per
 // agent, the Registry section of docs/agents/goal-agents.md, and the agent lines of the `### Goal agents` block of
@@ -375,40 +381,106 @@ export function compareHome({ source, home, name }) {
   return out;
 }
 
-/**
- * The files of a Home repo (`home`) re-adopted at `pin`, rendered from `source` (goal-agent at `pin`): a map of
- * path to new text, or to null for a file to remove. The Home repo's own parts stay: the definition's text apart
- * from its `goal-agent-pin`, the legends, the sections that are not adopted, `enabledPlugins`. A Home repo
- * written with these files has no drift from `source`, except where its definition differs from the skeleton in
- * a way only the user can resolve; the caller checks that with compareHome. Throws when the Home repo has not
- * adopted the text yet: the first adoption is by hand (R59).
- */
-export function adoptFiles({ source, home, name, pin }) {
-  const defFile = `.claude/agents/${name}.md`;
-  const definition = home.read(defFile);
-  const agents = home.read("docs/agents/goal-agents.md");
-  const tracker = home.read("docs/agents/issue-tracker.md");
-  const ops = tracker === null ? null : section(tracker, "## Goal agent operations");
-  if (definition === null || pinOf(definition) === null || agents === null || ops === null) {
-    throw new Error("the Home repo has not adopted the text yet (definition with goal-agent-pin, docs/agents/goal-agents.md, the operations section): do the first adoption by hand, R59");
-  }
-  const r = renderSources(source, pin);
-  const files = { [defFile]: definition.replace(/^goal-agent-pin:.*$/m, `goal-agent-pin: ${pin}`) };
+/** The generic files of a Home repo (ADR 0011 point 16): template under templates/ and target. Created only when missing. */
+export const HOME_GENERIC = [
+  ["home-CLAUDE.md", "CLAUDE.md"],
+  ["home-README.md", "README.md"],
+  ["home-memory-README.md", "memory/README.md"],
+  ["home-issue-tracker.md", "docs/agents/issue-tracker.md"],
+  ["home-triage-labels.md", "docs/agents/triage-labels.md"],
+  ["home-domain.md", "docs/agents/domain.md"],
+];
+const TRACKER = "docs/agents/issue-tracker.md";
+const OPERATIONS = "## Goal agent operations";
 
+/** A Home repo template with its only substitutions: {{name}}, {{home}} (owner/repo) and {{owner}}. */
+function fillTemplate(source, file, { name, homeRepo }) {
+  const text = source.read(`templates/${file}`);
+  if (text === null) throw new Error(`the source has no templates/${file}`);
+  const values = { name, home: homeRepo, owner: homeRepo.split("/")[0] };
+  return text.replace(/\{\{(name|home|owner)\}\}/g, (_, key) => values[key]);
+}
+
+/** `text` (rendered, no legend) with `legend` as the paragraph after its first paragraph that is not a heading. */
+function insertLegend(text, legend) {
+  const lines = text.split("\n");
+  const at = legendRange(lines.map((t, i) => ({ n: i + 1, text: t })));
+  if (at === null) return text;
+  lines.splice(at.from, 0, "", ...legend.replace(/\n+$/, "").split("\n"));
+  return lines.join("\n");
+}
+
+/** The definition with `goal-agent-pin: <pin>`: the line is replaced, or written after `name:` when missing. */
+function withPin(definition, pin) {
+  if (/^goal-agent-pin:/m.test(definition)) return definition.replace(/^goal-agent-pin:.*$/m, `goal-agent-pin: ${pin}`);
+  if (!/^name:/m.test(definition)) throw new Error("the definition has no `name:` line in its frontmatter");
+  return definition.replace(/^(name:.*)$/m, (line) => `${line}\ngoal-agent-pin: ${pin}`);
+}
+
+/** Whether `slug` reads as `owner/repo`. */
+const isRepoSlug = (slug) => typeof slug === "string" && /^[^/\s]+\/[^/\s]+$/.test(slug);
+
+/** The contract, the intro of the checklists and the sections after them, taken from an existing contract doc. */
+function splitGoalAgents(agents) {
   const lines = numbered(agents);
   const split = lines.findIndex((l) => l.text === "## Checklists");
-  const contract = withLegend(split < 0 ? lines : lines.slice(0, split), r.contract).replace(/\n+$/, "");
   const after = split < 0 ? [] : lines.slice(split + 1).map((l) => l.text);
   const first = after.findIndex((t) => t.startsWith("### "));
   const end = after.findIndex((t) => t.startsWith("## "));
-  const intro = after.slice(0, first < 0 ? after.length : first);
-  const tail = end < 0 ? [] : after.slice(end);
+  return {
+    contractLines: split < 0 ? lines : lines.slice(0, split),
+    intro: after.slice(0, first < 0 ? after.length : first),
+    tail: end < 0 ? [] : after.slice(end),
+  };
+}
+
+/** The tracker doc with its operations section `ops` (lines of `tracker`) replaced by `rendered`, legend kept. */
+function replaceOperations(tracker, ops, rendered) {
+  const lines = numbered(tracker).map((l) => l.text);
+  const blanks = ops.length - trimEnd(ops).length;
+  lines.splice(ops[0].n - 1, ops.length, ...withLegend(ops, rendered).split("\n"), ...Array(blanks).fill(""));
+  return lines.join("\n");
+}
+
+/**
+ * The files of a Home repo (`home`) adopted at `pin`, rendered from `source` (goal-agent at `pin`): a map of
+ * path to new text, or to null for a file to remove. The Home repo's own parts stay: the definition's text apart
+ * from its `goal-agent-pin`, the legends, the sections that are not adopted, `enabledPlugins`, and every generic
+ * file it holds. A Home repo written with these files has no drift from `source`, except where its definition
+ * differs from the skeleton in a way only the user can resolve; the caller checks that with compareHome.
+ * A Home repo never synced (ADR 0011 points 15 and 16) needs only its definition: the pin line, the contract, the
+ * checklists, the operations section (each with its legend) and the generic files (HOME_GENERIC, each only when
+ * missing, never rewritten) are created. `homeRepo` (`owner/repo`) is always required: the legends and the
+ * generic files name it.
+ */
+export function adoptFiles({ source, home, name, pin, homeRepo }) {
+  if (!isRepoSlug(homeRepo)) throw new Error("homeRepo (owner/repo) is required: the legends and the generic files name it");
+  const defFile = `.claude/agents/${name}.md`;
+  const definition = home.read(defFile);
+  if (definition === null) throw new Error(`the Home repo has no ${defFile}: write the definition first`);
+  const agents = home.read("docs/agents/goal-agents.md");
+  const heldTracker = home.read(TRACKER);
+  const fill = (file) => fillTemplate(source, file, { name, homeRepo });
+  const r = renderSources(source, pin);
+  const files = { [defFile]: withPin(definition, pin) };
+  for (const [template, target] of HOME_GENERIC) if (home.read(target) === null) files[target] = fill(template);
+
+  let contract, intro, tail = [];
+  if (agents === null) {
+    contract = insertLegend(r.contract, fill("home-contract-legend.md")).replace(/\n+$/, "");
+    intro = ["", ...fill("home-checklists-intro.md").replace(/\n+$/, "").split("\n"), ""];
+  } else {
+    const held = splitGoalAgents(agents);
+    contract = withLegend(held.contractLines, r.contract).replace(/\n+$/, "");
+    ({ intro, tail } = held);
+  }
   files["docs/agents/goal-agents.md"] = [contract, "", "## Checklists", ...(intro.length ? intro : [""]), r.checklists, ...(tail.length ? ["", ...tail] : [""])].join("\n");
 
-  const trackerLines = numbered(tracker).map((l) => l.text);
-  const blanks = ops.length - trimEnd(ops).length;
-  trackerLines.splice(ops[0].n - 1, ops.length, ...withLegend(ops, r.operations).split("\n"), ...Array(blanks).fill(""));
-  files["docs/agents/issue-tracker.md"] = trackerLines.join("\n");
+  const tracker = heldTracker ?? files[TRACKER];
+  const ops = section(tracker, OPERATIONS);
+  files[TRACKER] = ops === null
+    ? appendSection(tracker, trimNewlines(insertLegend(r.operations, fill("home-operations-legend.md"))))
+    : replaceOperations(tracker, ops, r.operations);
 
   for (const dir of GUARD_DIRS) {
     const want = source.list(dir);

@@ -135,7 +135,7 @@ async function sync({ homeDir, target, sourceDir, env }) {
   const source = render.fsTree(sourceDir);
   const defFile = `.claude/agents/${name}.md`;
   const before = render.fsTree(homeDir).read(defFile);
-  const files = render.adoptFiles({ source, home: render.fsTree(homeDir), name, pin: target });
+  const files = render.adoptFiles({ source, home: render.fsTree(homeDir), name, pin: target, homeRepo: env.GITHUB_REPOSITORY });
   for (const [path, text] of Object.entries(files)) {
     if (text === null) rmSync(join(homeDir, path), { force: true });
     else { mkdirSync(dirname(join(homeDir, path)), { recursive: true }); writeFileSync(join(homeDir, path), text); }
