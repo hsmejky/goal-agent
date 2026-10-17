@@ -1,0 +1,20 @@
+# Covered repo drift check (ADR 0011) as a goal-agent unit (ADR 0008). Called from a Covered repo's
+# .github/workflows/goal-agent-drift-check.yml at the shared goal-agent-pin. Runs scripts/covered/drift-check.mjs
+# from this action's own commit (github.action_path), which is the source the callers are compared with.
+# Trust: checks out the event's commit without credentials, an exception to the default-branch checkout
+# (ADR 0008, Amendments). Takes no secrets and no inputs, and writes nothing.
+name: Goal agent Covered repo drift check
+description: Fails when the Covered repo's gate, Consultation or drift-check caller differs from goal-agent at the shared pin.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      with:
+        persist-credentials: false
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version: 22
+    - name: Check for drift
+      shell: bash
+      run: node "${{ github.action_path }}/../../../scripts/covered/drift-check.mjs"

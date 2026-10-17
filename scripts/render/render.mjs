@@ -5,7 +5,8 @@
 // Interface:
 //   fsTree(dir), overlay(tree, files)   trees: { read(path) -> string | null, list(prefix) -> paths }
 //   compareHome({ source, home, name }) -> drift entries
-//   compareCovered({ source, covered }) -> drift entries
+//   compareCovered({ source, covered }) -> drift entries            (the gate's caller check: two callers)
+//   compareCoveredDrift({ source, covered }) -> drift entries       (the Covered repo drift check: three callers)
 //   renderText(markdown, pin), renderCoveredCaller(template, pin, names)
 // A drift entry is { item, file, line, expected, actual }: `line` is 1-based in the compared file (null when the
 // entry is about the whole file), and `expected` or `actual` is null when that side has no such line.
@@ -24,6 +25,10 @@ export const GUARD_DIRS = ["scripts/guard/", "scripts/lib/"];
 export const RETIRED_DIRS = ["scripts/gate/", "scripts/home/"];
 export const HOME_CALLERS = ["goal-agent-audit.yml", "goal-agent-staleness.yml", "goal-agent-drift-check.yml", "goal-agent-sync.yml"];
 export const COVERED_CALLERS = ["goal-agent-review.yml", "goal-agent-consult.yml"];
+// The Covered repo drift-check caller (ADR 0011): its template is named apart from the Home repo's, and both
+// render to the workflow goal-agent-drift-check.yml (no repo is both a Home repo and a Covered repo).
+export const COVERED_DRIFT_TEMPLATE = "goal-agent-covered-drift-check.yml";
+export const COVERED_DRIFT_WORKFLOW = "goal-agent-drift-check.yml";
 const PIN_PLACEHOLDER = "<goal-agent-pin>";
 const SAMPLE_PAIR = /^(\s*)GOAL_AGENT_GOAL_STEWARD_(FIRE_TOKEN|TRIGGER_ID):/;
 const SHA = /^[0-9a-f]{40}$/;
@@ -315,7 +320,7 @@ function compareSettings(source, home) {
   }));
 }
 
-/** A caller template at the pin compared with the repo's workflow of the same name. */
+/** A caller template at the pin compared with the repo's workflow `name`. */
 function compareCaller(repo, name, rendered) {
   const file = `.github/workflows/${name}`;
   const text = repo.read(file);
@@ -442,10 +447,10 @@ export function renderCoveredCaller(template, pin, names) {
 }
 
 /**
- * A Covered repo's gate and Consultation callers (`covered`) against the templates of `source`. The pin is the
- * SHA in the gate caller's own `uses:` line; the agents are the repo's registry rows.
+ * The callers `{ template, workflow }` of a Covered repo (`covered`) against the templates of `source`. The pin
+ * is the SHA in the gate caller's own `uses:` line; the agents are the repo's registry rows.
  */
-export function compareCovered({ source, covered }) {
+function compareCallers({ source, covered }, callers) {
   const gate = covered.read(`.github/workflows/${COVERED_CALLERS[0]}`);
   if (gate === null) return missingFile("caller", `.github/workflows/${COVERED_CALLERS[0]}`);
   const pin = /uses:\s*hsmejky\/goal-agent\/\S*@(\S+)/.exec(gate)?.[1] ?? null;
@@ -453,11 +458,28 @@ export function compareCovered({ source, covered }) {
     return [{ item: "uses", file: `.github/workflows/${COVERED_CALLERS[0]}`, line: null, expected: "a full 40-hex goal-agent SHA", actual: pin }];
   }
   const names = registryNames(covered.read("docs/agents/goal-agents.md"));
-  const out = [];
-  for (const caller of COVERED_CALLERS) {
-    out.push(...compareCaller(covered, caller, renderCoveredCaller(source.read(`templates/${caller}`), pin, names)));
-  }
-  return out;
+  return callers.flatMap(({ template, workflow }) =>
+    compareCaller(covered, workflow, renderCoveredCaller(source.read(`templates/${template}`), pin, names)));
+}
+
+/** A caller whose template and workflow share one file name. */
+const sameName = (c) => ({ template: c, workflow: c });
+
+/** A Covered repo's gate and Consultation callers (`covered`) against the templates of `source`: the gate's check. */
+export function compareCovered({ source, covered }) {
+  return compareCallers({ source, covered }, COVERED_CALLERS.map(sameName));
+}
+
+/**
+ * A Covered repo's three callers (the gate's, Consultation's and the drift check's) against the templates of
+ * `source`, all rendered at the gate caller's SHA: the Covered repo drift check. A caller at another SHA, a
+ * missing caller and a short SHA are drift.
+ */
+export function compareCoveredDrift({ source, covered }) {
+  return compareCallers({ source, covered }, [
+    ...COVERED_CALLERS.map(sameName),
+    { template: COVERED_DRIFT_TEMPLATE, workflow: COVERED_DRIFT_WORKFLOW },
+  ]);
 }
 
 /** Drift entries as text, one line each. */

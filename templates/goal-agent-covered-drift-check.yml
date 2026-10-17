@@ -1,0 +1,21 @@
+# Covered repo drift check (ADR 0011). Install in a Covered repo as .github/workflows/goal-agent-drift-check.yml.
+# A thin caller (ADR 0008): the only step is the goal-agent action, which runs scripts/covered/drift-check.mjs
+# from the commit named in `uses:`. Replace <goal-agent-pin> with the shared goal-agent-pin (full 40-hex
+# commit SHA on goal-agent's main), the same in every `uses:` line of the repo.
+# On every PR and every push to main: compares the gate, Consultation and drift-check callers with goal-agent's
+# templates rendered at that SHA for the repo's registry, and fails on any difference. Holds no secrets, writes nothing.
+name: Goal agent drift check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hsmejky/goal-agent/.github/actions/covered-drift-check@<goal-agent-pin>
