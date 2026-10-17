@@ -20,6 +20,7 @@ const units = [
   { dir: "home-audit", script: "scripts/home/audit.mjs", token: true, checkout: "default" },
   { dir: "home-staleness", script: "scripts/home/staleness.mjs", token: true, checkout: "default" },
   { dir: "home-drift-check", script: "scripts/home/drift-check.mjs", token: true, checkout: "event" },
+  { dir: "covered-drift-check", script: "scripts/covered/drift-check.mjs", token: false, checkout: "event" },
   // The sync takes the target commit as its one input, read by the script from the env, never put into `run`.
   { dir: "home-sync", script: "scripts/home/sync.mjs", token: true, checkout: "default", input: "target" },
 ];

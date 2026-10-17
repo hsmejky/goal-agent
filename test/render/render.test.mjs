@@ -8,7 +8,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { compareCovered, compareHome, DESIGN, fsTree, GUARD_DIRS, HOME_CALLERS, overlay, registryNames, renderCoveredCaller, renderSources, renderText } from "../../scripts/render/render.mjs";
+import { compareCovered, compareCoveredDrift, compareHome, COVERED_DRIFT_TEMPLATE, COVERED_DRIFT_WORKFLOW, DESIGN, fsTree, GUARD_DIRS, HOME_CALLERS, overlay, registryNames, renderCoveredCaller, renderSources, renderText } from "../../scripts/render/render.mjs";
 
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), "../fixtures");
 const source = fsTree(join(fixtures, "goal-agent-043deaa"));
@@ -206,4 +206,50 @@ test("the checklists are found under the retitled drift heading as well as the o
   assert.ok(!text.split("\n").includes(old));
   const expected = renderSources(source, PIN).checklists.replace(old, "### Checking a Covered repo's callers for drift");
   assert.equal(renderSources(retitled, PIN).checklists, expected);
+});
+
+// ---------------------------------------------------------------- Covered repo drift check (ADR 0011 point 4)
+
+const SHA_B = "b".repeat(40);
+const wf = (name) => `.github/workflows/${name}`;
+/** A Covered repo whose three callers are the templates rendered at `pin` for `names`; `files` overrides any file. */
+function coveredAt(pin, names = ["goal-steward"], files = {}) {
+  const registry = names.map((n) => `| \`${n}\` | \`goal-agent:${n}\` | \`me/${n}-home\` |`).join("\n");
+  return overlay(goalAgent, {
+    "docs/agents/goal-agents.md": `| Goal agent | Label | Home repo |\n|---|---|---|\n${registry}\n`,
+    [wf("goal-agent-review.yml")]: renderCoveredCaller(goalAgent.read("templates/goal-agent-review.yml"), pin, names),
+    [wf("goal-agent-consult.yml")]: renderCoveredCaller(goalAgent.read("templates/goal-agent-consult.yml"), pin, names),
+    [wf(COVERED_DRIFT_WORKFLOW)]: renderCoveredCaller(goalAgent.read(`templates/${COVERED_DRIFT_TEMPLATE}`), pin, names),
+    ...files,
+  });
+}
+const drift = (covered) => compareCoveredDrift({ source: goalAgent, covered });
+
+test("the Covered drift-check template has a name distinct from the Home repo one and renders to the same workflow name", () => {
+  assert.notEqual(COVERED_DRIFT_TEMPLATE, "goal-agent-drift-check.yml");
+  assert.equal(COVERED_DRIFT_WORKFLOW, "goal-agent-drift-check.yml");
+});
+
+test("a Covered repo with its three callers rendered at the gate's SHA for its registry has no drift", () => {
+  assert.deepEqual(drift(coveredAt(SHA_B, ["goal-steward", "other"])), []);
+});
+
+test("a third caller at another SHA than the gate's is a differing line", () => {
+  const third = wf(COVERED_DRIFT_WORKFLOW);
+  const other = coveredAt(SHA_B).read(third).replace(SHA_B, "c".repeat(40));
+  const out = drift(coveredAt(SHA_B, ["goal-steward"], { [third]: other }));
+  assert.deepEqual(out.map((d) => [d.item, d.file]), [["caller", third], ["caller", third]]);
+});
+
+test("a missing third caller, and a short SHA in it, are drift", () => {
+  const third = wf(COVERED_DRIFT_WORKFLOW);
+  assert.deepEqual(drift(coveredAt(SHA_B, ["goal-steward"], { [third]: null })).map((d) => [d.item, d.file]), [["caller", third]]);
+  const short = coveredAt(SHA_B).read(third).replace(SHA_B, SHA_B.slice(0, 12));
+  assert.deepEqual(items(drift(coveredAt(SHA_B, ["goal-steward"], { [third]: short }))), ["caller"]);
+});
+
+test("the gate's caller check does not widen: compareCovered ignores the third caller", () => {
+  const third = wf(COVERED_DRIFT_WORKFLOW);
+  assert.deepEqual(compareCovered({ source: goalAgent, covered: coveredAt(SHA_B, ["goal-steward"], { [third]: null }) }), []);
+  assert.deepEqual(compareCovered({ source: goalAgent, covered: coveredAt(SHA_B) }), []);
 });
