@@ -41,6 +41,7 @@ export function createHarness(seed = {}) {
         newIssues: pick("issue-create"),
         newPulls: pick("pull-create"),
         labels: pick("label"),
+        closedPulls: pick("pull-close"),
         all: read().writes,
       };
     },

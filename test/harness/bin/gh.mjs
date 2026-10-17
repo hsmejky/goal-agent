@@ -16,8 +16,19 @@ function violation(message) {
 const argv = process.argv.slice(2);
 state.ghCalls.push(argv);
 save();
+// No signed-in token: print the real gh's message and fail (no violation: a script may probe for it)
+function requireToken(message) {
+  if (state.token) return state.token;
+  process.stderr.write(message + "\n");
+  process.exit(1);
+}
+if (argv[0] === "auth" && argv[1] === "token" && argv.length === 2) {
+  // `gh auth token`: the seeded token, or the real gh's failure when none is signed in
+  process.stdout.write(requireToken("no oauth token found for github.com").value + "\n");
+  process.exit(0);
+}
 if (argv[0] !== "api") {
-  violation(`"gh ${argv.join(" ")}" is not allowed: scripts may only call "gh api <REST path>" (the cloud GitHub proxy rejects GraphQL-based gh subcommands)`);
+  violation(`"gh ${argv.join(" ")}" is not allowed: scripts may only call "gh api <REST path>" or "gh auth token" (the cloud GitHub proxy rejects GraphQL-based gh subcommands)`);
 }
 const args = argv.slice(1);
 let method, path, inputFile;
@@ -45,6 +56,14 @@ for (let i = 0; i < args.length; i++) {
 if (!path) violation("gh api needs a path");
 const [rawPath, qs = ""] = path.split("?");
 if (/^\/?graphql$/.test(rawPath)) violation("gh api graphql is not allowed: the cloud GitHub proxy rejects GraphQL; use a REST path");
+if (rawPath === "user" && args.some((a) => a === "-i" || a === "--include")) {
+  // `gh api -i user`: the response headers the Pin move reads the token's scopes from. A classic token
+  // sends X-Oauth-Scopes (empty when it has none); a fine-grained token (no `scopes` seeded) sends no such header.
+  const { scopes } = requireToken("gh: Requires authentication (HTTP 401)");
+  const header = scopes ? `X-Oauth-Scopes: ${scopes.join(", ")}\n` : "";
+  process.stdout.write(`HTTP/2.0 200 OK\n${header}\n{"login":"user"}\n`);
+  process.exit(0);
+}
 const query = Object.fromEntries(new URLSearchParams(qs));
 method ??= Object.keys(fields).length || inputFile ? "POST" : "GET";
 let body = {};
