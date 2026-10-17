@@ -70,6 +70,10 @@ _Avoid_: Central registry, the one registry, fleet list
 The table in a Covered repo naming each Goal agent that covers it, with its label and Home repo; it follows from the definitions that list the repo and is never edited by hand.
 _Avoid_: Agent list, goal-agents table
 
+**Pin move**:
+The one action by the user that moves every Home repo and Covered repo to a new goal-agent commit, opening a PR in each repo that differs; the user merges each PR.
+_Avoid_: Sync, bump, fleet sync, re-adoption
+
 ## Goal agent state
 
 **State issue**:
