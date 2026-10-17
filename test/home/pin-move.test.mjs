@@ -208,3 +208,23 @@ test("the PR branch passes the real Home repo drift check", () => {
 test("the Roster in goal-agent's docs lists goal-steward and parses without an unreadable row", () => {
   assert.deepEqual(parseRoster(readFileSync(join(root, ROSTER_PATH), "utf8")), [{ name: "goal-steward", home: A }]);
 });
+
+test("--dry-run is refused before any read until #152 implements it, and nothing is written", () => {
+  const remotes = tmp();
+  const a = homeRepo(remotes, A, "goal-steward");
+  const { h, r } = run({ argv: [TARGET, "--dry-run"], remotes, roster: table(row("goal-steward", A)), homes: { [A]: {} } });
+  assert.notEqual(r.code, 0);
+  assert.match(r.stderr, /--dry-run is not implemented yet \(#152\); nothing was read or pushed/);
+  assert.equal(reads(h).length, 0);
+  assert.equal(h.writes.all.length, 0);
+  assert.deepEqual(branches(a.origin), ["main"]);
+});
+
+test("a pipe in an unreadable Roster row cannot break the report table", () => {
+  const roster = table("| `bad|row` | a\\|b |");
+  const { r } = run({ roster });
+  assert.equal(r.code, 1);
+  const line = r.stdout.split("\n").find((l) => l.includes("bad"));
+  assert.equal(line.split(/(?<!\\)\|/).length, 6, line);
+  assert.match(line, /bad\\\|row/);
+});

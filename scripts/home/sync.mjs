@@ -21,9 +21,21 @@ const SOURCE_REPO = "hsmejky/goal-agent";
 const SHA = /^[0-9a-f]{40}$/;
 const BOT = ["-c", "user.name=github-actions[bot]", "-c", "user.email=41898282+github-actions[bot]@users.noreply.github.com"];
 
-function option(argv, name, fallback) {
+/** The value after `name` in `argv`, or undefined. */
+export function optionValue(argv, name) {
   const i = argv.indexOf(name);
-  return i >= 0 && argv[i + 1] ? resolve(argv[i + 1]) : fallback;
+  return i >= 0 ? argv[i + 1] : undefined;
+}
+
+/** The path after `name` in `argv`, resolved, else `fallback`. */
+function pathOption(argv, name, fallback) {
+  const value = optionValue(argv, name);
+  return value ? resolve(value) : fallback;
+}
+
+/** The names in `names` that `render` (a target's renderer module) does not export as functions. */
+export function lackingFunctions(render, names) {
+  return names.filter((f) => typeof render[f] !== "function");
 }
 
 /** `git <args>` in `cwd`; `bot` commits as the Actions bot (the dispatch), else as the git identity in effect. */
@@ -114,12 +126,12 @@ function prBody({ sha, oldPin, covered, others, drift, formatDrift }) {
 }
 
 export async function main(argv = process.argv.slice(2), env = process.env) {
-  const homeDir = option(argv, "--home", process.cwd());
+  const homeDir = pathOption(argv, "--home", process.cwd());
   const target = env.TARGET;
   checkTarget(target);
 
-  const given = option(argv, "--source", null);
-  const remote = argv.includes("--remote") ? argv[argv.indexOf("--remote") + 1] : `https://github.com/${SOURCE_REPO}.git`;
+  const given = pathOption(argv, "--source", null);
+  const remote = optionValue(argv, "--remote") ?? `https://github.com/${SOURCE_REPO}.git`;
   const sourceDir = given ?? fetchSource(target, remote);
   try {
     return await sync({ homeDir, target, sourceDir, env });
@@ -130,7 +142,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
 
 async function sync({ homeDir, target, sourceDir, env }) {
   const render = await import(pathToFileURL(join(sourceDir, "scripts/render/render.mjs")).href);
-  if (typeof render.adoptFiles !== "function") throw new Error(`refused: ${target} predates the sync generator (no adoptFiles in its renderer)`);
+  if (lackingFunctions(render, ["adoptFiles"]).length) throw new Error(`refused: ${target} predates the sync generator (no adoptFiles in its renderer)`);
   const result = await syncHome({ homeDir, name: agentName(homeDir, env), target, render, sourceDir, repo: env.GITHUB_REPOSITORY, env, describe: dispatchPr(target, env.GITHUB_REPOSITORY) });
   if (!result.changed) console.log(`sync: the Home repo is already at ${target}`);
   else console.log(`sync: opened ${result.url}; it starts no workflows, so close and reopen it to start the drift check`);
@@ -180,7 +192,6 @@ export async function syncHome({ homeDir, name, target, render, sourceDir, repo,
   const pr = ghApi(`repos/${repo}/pulls`, { method: "POST", body: { title, head: branch, base, body } });
   return { changed: true, oldPin, url: pr.html_url ?? `#${pr.number}` };
 }
-
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().then((code) => { process.exitCode = code; }, (e) => { console.error(`sync failed: ${e.message}`); process.exitCode = 1; });
