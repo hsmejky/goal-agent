@@ -105,6 +105,22 @@ test("one PR from a branch named for the target sets the pin, the uses SHAs and 
   assert.equal(git(repo.origin, "rev-list", "--count", `main..${branch}`).trim(), "1");
 });
 
+test("a Home repo that holds scripts/gate/ and scripts/home/ gets a PR whose one commit deletes both", () => {
+  const repo = homeRepo((dir) => {
+    for (const f of ["scripts/gate/gate.mjs", "scripts/gate/lib/a.mjs", "scripts/home/sync.mjs"]) {
+      mkdirSync(dirname(join(dir, f)), { recursive: true });
+      writeFileSync(join(dir, f), "// retired copy\n");
+    }
+  });
+  const { r } = run({ home: repo.home });
+  assert.equal(r.code, 0, r.stderr);
+  const branch = `goal-agent-sync-${TARGET.slice(0, 12)}`;
+  assert.equal(git(repo.origin, "rev-list", "--count", `main..${branch}`).trim(), "1");
+  const deleted = git(repo.origin, "diff", "--name-only", "--diff-filter=D", `main..${branch}`).split("\n").filter(Boolean).sort();
+  assert.deepEqual(deleted, ["scripts/gate/gate.mjs", "scripts/gate/lib/a.mjs", "scripts/home/sync.mjs"]);
+  assert.equal(git(repo.origin, "ls-tree", "-r", "--name-only", branch, "scripts/gate", "scripts/home").trim(), "");
+});
+
 test("a re-run for the same target refuses with a clear message when the branch already exists", () => {
   const repo = homeRepo();
   const first = run({ home: repo.home });
