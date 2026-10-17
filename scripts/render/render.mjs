@@ -29,7 +29,7 @@ export const COVERED_CALLERS = ["goal-agent-review.yml", "goal-agent-consult.yml
 // render to the workflow goal-agent-drift-check.yml (no repo is both a Home repo and a Covered repo).
 export const COVERED_DRIFT_TEMPLATE = "goal-agent-covered-drift-check.yml";
 export const COVERED_DRIFT_WORKFLOW = "goal-agent-drift-check.yml";
-const PIN_PLACEHOLDER ="<goal-agent-pin>";
+const PIN_PLACEHOLDER = "<goal-agent-pin>";
 const SAMPLE_PAIR = /^(\s*)GOAL_AGENT_GOAL_STEWARD_(FIRE_TOKEN|TRIGGER_ID):/;
 const SHA = /^[0-9a-f]{40}$/;
 
@@ -462,9 +462,12 @@ function compareCallers({ source, covered }, callers) {
     compareCaller(covered, workflow, renderCoveredCaller(source.read(`templates/${template}`), pin, names)));
 }
 
+/** A caller whose template and workflow share one file name. */
+const sameName = (c) => ({ template: c, workflow: c });
+
 /** A Covered repo's gate and Consultation callers (`covered`) against the templates of `source`: the gate's check. */
 export function compareCovered({ source, covered }) {
-  return compareCallers({ source, covered }, COVERED_CALLERS.map((c) => ({ template: c, workflow: c })));
+  return compareCallers({ source, covered }, COVERED_CALLERS.map(sameName));
 }
 
 /**
@@ -474,7 +477,7 @@ export function compareCovered({ source, covered }) {
  */
 export function compareCoveredDrift({ source, covered }) {
   return compareCallers({ source, covered }, [
-    ...COVERED_CALLERS.map((c) => ({ template: c, workflow: c })),
+    ...COVERED_CALLERS.map(sameName),
     { template: COVERED_DRIFT_TEMPLATE, workflow: COVERED_DRIFT_WORKFLOW },
   ]);
 }
