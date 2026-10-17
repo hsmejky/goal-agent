@@ -494,66 +494,87 @@ export function compareCoveredDrift({ source, covered }) {
 const REGISTRY_FILE = "docs/agents/goal-agents.md";
 const REGISTRY_HEADING = "## Goal agents in this repo";
 const BLOCK_HEADING = "### Goal agents";
-const AGENT_LINE = /^- `[^`]+`: Home repo `[^`]*`, label `[^`]*`\.$/;
+// Appendix E holds two fenced blocks: the CLAUDE.md block, then the agent docs file.
+const BLOCK_SOURCE = 0;
+const REGISTRY_SOURCE = 1;
+
+/** The CLAUDE.md agent line of a Registry row; AGENT_LINE is derived from it, so they cannot drift apart. */
+const agentLine = (a) => `- \`${a.name}\`: Home repo \`${a.home}\`, label \`${a.label}\`.`;
+const AGENT_LINE = (() => {
+  const field = (k) => `\u0000${k}\u0000`;
+  const escaped = agentLine({ name: field("name"), home: field("home"), label: field("label") }).replace(/[.*+?^${}()|[\]\`]/g, "\$&");
+  return new RegExp(`^${escaped.replace(/\u0000name\u0000/, "[^`]+").replace(/\u0000(home|label)\u0000/g, "[^`]*")}$`);
+})();
 
 const byName = (a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+const trimNewlines = (text) => text.replace(/\n+$/, "");
+
+/** Index of the first line at or after `i` that is not blank. */
+function skipBlank(lines, i) {
+  while (i < lines.length && lines[i].trim() === "") i++;
+  return i;
+}
+
+/** `text` with `section` appended as a paragraph of its own. */
+const appendSection = (text, section) => `${trimNewlines(text)}\n\n${section}\n`;
+
+/** `lines` with the lines [from, to) replaced by `replacement`. */
+const spliceLines = (lines, from, to, replacement) => [...lines.slice(0, from), ...replacement, ...lines.slice(to)];
 
 /** Index of the first line after `from` that opens a heading of `level` or fewer `#`, else the end. */
 function endOfSection(lines, from, level) {
-  const i = lines.findIndex((l, k) => k > from && new RegExp(`^#{1,${level}} `).test(l));
+  const heading = new RegExp(`^#{1,${level}} `);
+  const i = lines.findIndex((l, k) => k > from && heading.test(l));
   return i < 0 ? lines.length : i;
 }
 
 /** `text` (a Covered repo's agent docs, or null) with the Registry section for `agents` and the rest kept. */
 function renderRegistry(design, text, agents) {
   // Appendix E's file: a title, the section heading, the table header, one sample row, the paragraph.
-  const canonical = fencedBlock(design, "## Appendix E", "```", 1).split("\n");
+  const canonical = fencedBlock(design, "## Appendix E", "```", REGISTRY_SOURCE).split("\n");
   const heading = canonical.indexOf(REGISTRY_HEADING);
   const table = canonical.findIndex((l) => l.startsWith("|"));
+  const canonicalParagraph = canonical.slice(table + 3).join("\n").trim();
   const rows = agents.map((a) => `| \`${a.name}\` | \`${a.label}\` | \`${a.home}\` |`);
-  const section = [...canonical.slice(heading, table + 2), ...rows, ...canonical.slice(table + 3)].join("\n").replace(/\n+$/, "");
+  const section = trimNewlines([...canonical.slice(heading, table + 2), ...rows, ...canonical.slice(table + 3)].join("\n"));
   if (text === null) return `${canonical.slice(0, heading).join("\n")}\n${section}\n`;
   const lines = text.split("\n");
   const start = lines.indexOf(REGISTRY_HEADING);
-  if (start < 0) return `${text.replace(/\n*$/, "")}\n\n${section}\n`;
-  // The section is the heading, the table and the paragraph under it; text after that is the user's.
-  let end = start + 1;
-  while (end < lines.length && lines[end].trim() === "") end++;
+  if (start < 0) return appendSection(text, section);
+  // The section is the heading, the table and Appendix E's paragraph under it; any other text is the user's.
+  let end = skipBlank(lines, start + 1);
   while (end < lines.length && lines[end].startsWith("|")) end++;
-  let para = end;
-  while (para < lines.length && lines[para].trim() === "") para++;
-  if (para < lines.length && !/^[#|]/.test(lines[para])) {
-    end = para;
-    while (end < lines.length && lines[end].trim() !== "") end++;
-  }
-  return [...lines.slice(0, start), ...section.split("\n"), ...lines.slice(end)].join("\n");
+  const paragraphStart = skipBlank(lines, end);
+  let paragraphEnd = paragraphStart;
+  while (paragraphEnd < lines.length && lines[paragraphEnd].trim() !== "") paragraphEnd++;
+  if (lines.slice(paragraphStart, paragraphEnd).join("\n").trim() === canonicalParagraph) end = paragraphEnd;
+  return spliceLines(lines, start, end, section.split("\n")).join("\n");
 }
 
 /** CLAUDE.md `text` (or null) with the agent lines of its `### Goal agents` block; the block is created when missing. */
 function renderBlock(design, text, agents) {
-  const canonical = fencedBlock(design, "## Appendix E", "```", 0).split("\n");
+  const canonical = fencedBlock(design, "## Appendix E", "```", BLOCK_SOURCE).split("\n");
   const sample = canonical.findIndex((l) => l.startsWith("- `<name>`"));
-  const lines = agents.map((a) => `- \`${a.name}\`: Home repo \`${a.home}\`, label \`${a.label}\`.`);
+  const lines = agents.map(agentLine);
   const block = [...canonical.slice(0, sample), ...lines, ...canonical.slice(sample + 1)].join("\n");
   if (text === null) return `## Agent skills\n\n${block}\n`;
   const doc = text.split("\n");
   const start = doc.indexOf(BLOCK_HEADING);
   if (start >= 0) {
     const end = endOfSection(doc, start, 3);
-    const at = doc.findIndex((l, k) => k > start && k < end && AGENT_LINE.test(l));
-    const kept = doc.filter((l, k) => k <= start || k >= end || !AGENT_LINE.test(l));
-    if (at >= 0) return [...kept.slice(0, at), ...lines, ...kept.slice(at)].join("\n");
+    const firstAgentLine = doc.findIndex((l, k) => k > start && k < end && AGENT_LINE.test(l));
+    const withoutAgentLines = doc.filter((l, k) => k <= start || k >= end || !AGENT_LINE.test(l));
+    if (firstAgentLine >= 0) return spliceLines(withoutAgentLines, firstAgentLine, firstAgentLine, lines).join("\n");
     // A block without agent lines: they go after its first paragraph.
-    let p = start + 1;
-    while (kept[p]?.trim() === "") p++;
-    while (p < kept.length && kept[p].trim() !== "") p++;
-    return [...kept.slice(0, p), "", ...lines, ...kept.slice(p)].join("\n");
+    let afterIntro = skipBlank(withoutAgentLines, start + 1);
+    while (afterIntro < withoutAgentLines.length && withoutAgentLines[afterIntro].trim() !== "") afterIntro++;
+    return spliceLines(withoutAgentLines, afterIntro, afterIntro, ["", ...lines]).join("\n");
   }
   const skills = doc.indexOf("## Agent skills");
-  if (skills < 0) return `${text.replace(/\n*$/, "")}\n\n## Agent skills\n\n${block}\n`;
+  if (skills < 0) return appendSection(text, `## Agent skills\n\n${block}`);
   let end = endOfSection(doc, skills, 2);
   while (end > skills + 1 && doc[end - 1].trim() === "") end--;
-  return [...doc.slice(0, end), "", ...block.split("\n"), ...doc.slice(end)].join("\n");
+  return spliceLines(doc, end, end, ["", ...block.split("\n")]).join("\n");
 }
 
 /**

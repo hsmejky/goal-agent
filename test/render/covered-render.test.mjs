@@ -21,6 +21,7 @@ const render = (covered, agents = AGENTS, pin = PIN) => renderCovered({ source, 
 const apply = (covered, files) => overlay(covered, files);
 const adopted = (agents = AGENTS) => apply(nothing, render(nothing, agents));
 const secretNames = (text) => [...text.matchAll(/^\s*GOAL_AGENT_([A-Z0-9_]+?)_FIRE_TOKEN:/gm)].map((m) => m[1]);
+const PARAGRAPH = render(nothing)[DOCS].replace(/^[\s\S]*\n\n(?=Each agent's)/, "").replace(/\n+$/, "");
 const ALL = [...WORKFLOWS, "CLAUDE.md", DOCS].sort();
 
 test("a Covered repo with no Goal agent files gets three callers, the agent docs and a CLAUDE.md block, and has no drift", () => {
@@ -43,7 +44,7 @@ test("this repo, a Covered repo of goal-steward, already matches its rendering",
   assert.deepEqual(Object.keys(render(source, [goalSteward], pin)), [WORKFLOWS[2]]);
 });
 
-test("Registry rows and the secret pairs of all three callers follow agent name order, whatever order the rows come in", () => {
+test("Registry rows and the secret pairs of the gate and Consultation callers follow agent name order, whatever order the rows come in", () => {
   const four = ["mike", "zeta", "alpha", "b-2"].map(agent);
   const files = render(nothing, four);
   assert.deepEqual(render(nothing, [...four].reverse()), files);
@@ -63,11 +64,20 @@ test("an added agent changes the Registry, the block's agent lines and the calle
 test("hand-written text around the Registry section survives byte for byte, trailing text included", () => {
   const before = "# Goal agents\n\n\twhatever  \n\n## Intro\n\nHand-written.  \n\n";
   const after = "\n\n## Notes\n\n- kept\n  \n\ttrailing   ";
-  const old = `${before}## Goal agents in this repo\n\n| Goal agent | Label | Home repo |\n|---|---|---|\n| \`gone\` | \`goal-agent:gone\` | \`me/gone-home\` |\n\nOld paragraph.${after}`;
+  const old = `${before}## Goal agents in this repo\n\n| Goal agent | Label | Home repo |\n|---|---|---|\n| \`gone\` | \`goal-agent:gone\` | \`me/gone-home\` |\n\n${PARAGRAPH}${after}`;
   const out = render(overlay(nothing, { [DOCS]: old }))[DOCS];
   const canonical = render(nothing)[DOCS].replace(/^[\s\S]*?(?=## Goal agents in this repo)/, "").replace(/\n+$/, "");
   assert.equal(out, `${before}${canonical}${after}`);
   assert.deepEqual(registryNames(out), ["alpha", "zeta"]);
+});
+
+test("a paragraph of the user's right after the Registry table is kept byte for byte, after the canonical paragraph", () => {
+  const mine = "My own note about\nthese agents.  ";
+  const old = `# Goal agents\n\n## Goal agents in this repo\n\n| Goal agent | Label | Home repo |\n|---|---|---|\n| \`gone\` | \`goal-agent:gone\` | \`me/gone-home\` |\n\n${mine}\n\n## Other\n\ntext\n`;
+  const files = render(overlay(nothing, { [DOCS]: old }));
+  assert.ok(files[DOCS].endsWith(`${PARAGRAPH}\n\n${mine}\n\n## Other\n\ntext\n`));
+  assert.deepEqual(registryNames(files[DOCS]), ["alpha", "zeta"]);
+  assert.deepEqual(render(apply(nothing, files)), {});
 });
 
 test("a Registry section without the paragraph, or a docs file without the section, gets the section in place", () => {
