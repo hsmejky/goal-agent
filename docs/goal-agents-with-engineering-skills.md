@@ -691,7 +691,7 @@ The user's sessions never run a Goal agent. When a decision on an issue in the a
 | The checklists in this requirement: every `###` section from `### Adding a Covered repo` to the end of the paragraph under `### Checking a Covered repo's gate copy for drift`; the paragraphs before `### Adding a Covered repo` are not adopted | `docs/agents/goal-agents.md` § Checklists |
 | `scripts/guard/`, `scripts/lib/` | `scripts/guard/`, `scripts/lib/` |
 | `templates/home-settings.json` | `.claude/settings.json` |
-| `templates/goal-agent-audit.yml`, `templates/goal-agent-staleness.yml`, `templates/goal-agent-drift-check.yml` | `.github/workflows/` |
+| `templates/goal-agent-audit.yml`, `templates/goal-agent-staleness.yml`, `templates/goal-agent-drift-check.yml`, `templates/goal-agent-sync.yml` | `.github/workflows/` |
 
 **Substitutions.** Copying applies these and nothing else; the wording, order and numbering of the copied text stay as they are here:
 
@@ -741,12 +741,18 @@ It is covered once the Home repo PR is merged.
 
 ### Re-adopting a goal-agent change
 
-A change to the adopted text or to `scripts/` or `templates/`.
+A change to the adopted text or to `scripts/` or `templates/`. The Home repo's sync workflow (`.github/workflows/goal-agent-sync.yml`, `templates/goal-agent-sync.yml`) does steps 2 to 4 in one PR; the hand steps below are the fallback when it fails.
+
+1. Once per Home repo: turn on the repo setting "Allow GitHub Actions to create pull requests" (Settings, Actions, General). Without it the sync fails when it opens the PR.
+2. Start the sync workflow by hand with one input, the target: a full 40-hex commit SHA that goal-agent's `main` contains. The sync refuses anything else (a short SHA, a branch or tag name, a commit not on `main`). It renders the adopted text, the callers, the guard copy and the settings at the target, sets `goal-agent-pin` and every `uses:` SHA to it, and opens one PR.
+3. A PR opened with `GITHUB_TOKEN` starts no workflows, so the drift check does not run on it. Close and reopen the PR, or push a commit to its branch, to start the drift check, and merge only when it passes. Fix any difference the PR body lists under "Left for you" in the same PR.
+4. Work through the hand steps in the PR body: a Covered repo PR for every Covered repo of this Home repo, setting the `uses:` SHA in both caller workflows to the target (two lines each); and the sync in every other Home repo that shares a Covered repo with this one (the registry in each Covered repo's `docs/agents/goal-agents.md` lists them), all with the same target. Merge these PRs in one sitting, so the pins stay shared.
+
+Hand steps, if the sync cannot run:
 
 1. In goal-agent, diff the sources that [R59](#r59) lists under "What re-adoption copies, and where it goes", from the Home repo's current `goal-agent-pin` to the new tag or commit.
-2. Home repo PR: apply the differences, that is, recopy the changed scripts and templates and update the adopted text, and set `goal-agent-pin` to the new tag or commit in the same PR. A text-only change bumps the pin too.
-3. Home repo PRs: as in step 2, one in every Home repo that shares a Covered repo with this one, all setting the same new pin. Find the other Home repos in each Covered repo's `docs/agents/goal-agents.md` registry; this Home repo's Covered repos are in its definition's `## Covered repos`.
-4. Covered repo PR, only if a file under `scripts/gate/` differs between the old and the new pin: recopy the changed files, so the copy is byte-identical to `scripts/gate/*.mjs` at the new pin. A bump that changes nothing there needs none. Merge the PRs from steps 3 and 4 in one sitting, so the copy does not stay under a Home repo whose pin differs from it in a gate file.
+2. Home repo PR: apply the differences, that is, recopy the changed scripts and templates and update the adopted text, and set `goal-agent-pin` and every `uses:` SHA to the new commit in the same PR. A text-only change bumps the pin too.
+3. Home repo PRs and Covered repo PRs: as in step 4 above.
 
 ### Checking a Covered repo's gate copy for drift
 

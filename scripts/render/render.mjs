@@ -19,7 +19,7 @@ import { isDeepStrictEqual } from "node:util";
 export const DESIGN = "docs/goal-agents-with-engineering-skills.md";
 export const BLOB = "https://github.com/hsmejky/goal-agent/blob";
 export const GUARD_DIRS = ["scripts/guard/", "scripts/lib/"];
-export const HOME_CALLERS = ["goal-agent-audit.yml", "goal-agent-staleness.yml", "goal-agent-drift-check.yml"];
+export const HOME_CALLERS = ["goal-agent-audit.yml", "goal-agent-staleness.yml", "goal-agent-drift-check.yml", "goal-agent-sync.yml"];
 export const COVERED_CALLERS = ["goal-agent-review.yml", "goal-agent-consult.yml"];
 const PIN_PLACEHOLDER = "<goal-agent-pin>";
 const SAMPLE_PAIR = /^(\s*)GOAL_AGENT_GOAL_STEWARD_(FIRE_TOKEN|TRIGGER_ID):/;
@@ -154,15 +154,15 @@ function diffLines(item, file, expected, actual) {
 
 const missingFile = (item, file) => [{ item, file, line: null, expected: "the file", actual: null }];
 
-/** `lines` without the paragraph after the first non-heading paragraph: the Home repo's legend (R59). */
-function withoutLegend(lines) {
+/** The legend of a Home file (R59): the lines [from, to) holding the paragraph after the first non-heading one. */
+function legendRange(lines) {
   let i = 0;
   const blank = (k) => k < lines.length && lines[k].text.trim() === "";
   const skipBlank = () => { while (blank(i)) i++; };
   const skipPara = () => { while (i < lines.length && !blank(i)) i++; };
   for (;;) {
     skipBlank();
-    if (i >= lines.length) return lines;
+    if (i >= lines.length) return null;
     const heading = lines[i].text.startsWith("#");
     skipPara();
     if (!heading) break;
@@ -170,7 +170,23 @@ function withoutLegend(lines) {
   const from = i;
   skipBlank();
   skipPara();
-  return [...lines.slice(0, from), ...lines.slice(i)];
+  return { from, to: i };
+}
+
+/** `lines` without the Home repo's legend. */
+function withoutLegend(lines) {
+  const r = legendRange(lines);
+  return r === null ? lines : [...lines.slice(0, r.from), ...lines.slice(r.to)];
+}
+
+/** `text` (rendered, no legend) with the legend of the numbered `old` lines put back where it stood. */
+function withLegend(old, text) {
+  const had = legendRange(old);
+  const lines = text.split("\n");
+  const at = legendRange(lines.map((t, i) => ({ n: i + 1, text: t })));
+  if (had === null || at === null) return text;
+  lines.splice(at.from, 0, ...old.slice(had.from, had.to).map((l) => l.text));
+  return lines.join("\n");
 }
 
 /** The numbered lines of the `## ` section titled `title`, up to the next `## ` heading or the end. */
@@ -337,6 +353,60 @@ export function compareHome({ source, home, name }) {
   }
   out.push(...compareUses(home, pin));
   return out;
+}
+
+/**
+ * The files of a Home repo (`home`) re-adopted at `pin`, rendered from `source` (goal-agent at `pin`): a map of
+ * path to new text, or to null for a file to remove. The Home repo's own parts stay: the definition's text apart
+ * from its `goal-agent-pin`, the legends, the sections that are not adopted, `enabledPlugins`. A Home repo
+ * written with these files has no drift from `source`, except where its definition differs from the skeleton in
+ * a way only the user can resolve; the caller checks that with compareHome. Throws when the Home repo has not
+ * adopted the text yet: the first adoption is by hand (R59).
+ */
+export function adoptFiles({ source, home, name, pin }) {
+  const defFile = `.claude/agents/${name}.md`;
+  const definition = home.read(defFile);
+  const agents = home.read("docs/agents/goal-agents.md");
+  const tracker = home.read("docs/agents/issue-tracker.md");
+  const ops = tracker === null ? null : section(tracker, "## Goal agent operations");
+  if (definition === null || pinOf(definition) === null || agents === null || ops === null) {
+    throw new Error("the Home repo has not adopted the text yet (definition with goal-agent-pin, docs/agents/goal-agents.md, the operations section): do the first adoption by hand, R59");
+  }
+  const r = renderSources(source, pin);
+  const files = { [defFile]: definition.replace(/^goal-agent-pin:.*$/m, `goal-agent-pin: ${pin}`) };
+
+  const lines = numbered(agents);
+  const split = lines.findIndex((l) => l.text === "## Checklists");
+  const contract = withLegend(split < 0 ? lines : lines.slice(0, split), r.contract).replace(/\n+$/, "");
+  const after = split < 0 ? [] : lines.slice(split + 1).map((l) => l.text);
+  const first = after.findIndex((t) => t.startsWith("### "));
+  const end = after.findIndex((t) => t.startsWith("## "));
+  const intro = after.slice(0, first < 0 ? after.length : first);
+  const tail = end < 0 ? [] : after.slice(end);
+  files["docs/agents/goal-agents.md"] = [contract, "", "## Checklists", ...(intro.length ? intro : [""]), r.checklists, ...(tail.length ? ["", ...tail] : [""])].join("\n");
+
+  const trackerLines = numbered(tracker).map((l) => l.text);
+  const blanks = ops.length - trimEnd(ops).length;
+  trackerLines.splice(ops[0].n - 1, ops.length, ...withLegend(ops, r.operations).split("\n"), ...Array(blanks).fill(""));
+  files["docs/agents/issue-tracker.md"] = trackerLines.join("\n");
+
+  for (const dir of GUARD_DIRS) {
+    const want = source.list(dir);
+    for (const f of want) files[f] = source.read(f);
+    for (const f of home.list(dir).filter((f) => !want.includes(f))) files[f] = null;
+  }
+
+  const template = source.read("templates/home-settings.json");
+  const plugins = JSON.parse(home.read(".claude/settings.json") ?? "{}").enabledPlugins;
+  files[".claude/settings.json"] = plugins === undefined ? template : `${JSON.stringify({ enabledPlugins: plugins, ...JSON.parse(template) }, null, 2)}\n`;
+
+  const callers = HOME_CALLERS.filter((c) => source.read(`templates/${c}`) !== null);
+  for (const c of callers) files[`.github/workflows/${c}`] = source.read(`templates/${c}`).replaceAll(PIN_PLACEHOLDER, pin);
+  for (const f of home.list(".github/workflows/").filter((f) => !callers.some((c) => f.endsWith(`/${c}`)))) {
+    const text = home.read(f).replace(/(uses:\s*hsmejky\/goal-agent\/\S*@)\S+/g, `$1${pin}`);
+    if (text !== home.read(f)) files[f] = text;
+  }
+  return files;
 }
 
 // ---------------------------------------------------------------- Covered repo

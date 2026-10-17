@@ -122,3 +122,16 @@ test("curl reads the body from stdin with -d @-", () => {
   assert.equal(h.fires[0].body, "from-stdin");
   h.cleanup();
 });
+
+test("compare answers a seeded status per head and 404s an unknown one; POST pulls records a new PR", () => {
+  const h = createHarness({ repos: { "o/r": { compare: { "main...aaa": "behind" } } } });
+  const script = h.writeScript("c.cjs", `${SHELL}
+sh("gh api repos/o/r/compare/main...aaa");
+sh("gh api repos/o/r/compare/main...bbb || echo bbb-refused");
+sh("gh api repos/o/r/pulls -f title=T -f head=br -f base=main -f body=B");`);
+  const r = h.run(process.execPath, [script]);
+  assert.equal(r.code, 0, r.stderr);
+  assert.match(r.stdout, /"status":\s*"behind"/);
+  assert.deepEqual(h.writes.newPulls.map(({ repo, title, head, base, body }) => ({ repo, title, head, base, body })), [{ repo: "o/r", title: "T", head: "br", base: "main", body: "B" }]);
+  h.cleanup();
+});

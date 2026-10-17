@@ -55,6 +55,7 @@ The caller files are rendered, not hand-copied. `templates/` at the pin holds th
 ## Amendments
 
 - **Drift-check checkout of the event commit** ([#114][i114], user decision). The gate and Consultation actions check out only the caller repo's default branch. The Home repo drift-check action (`.github/actions/home-drift-check/`) is the one exception: it checks out the event's commit (the PR's merge commit, or the pushed commit on `main`), because it must compare the files as the PR or push leaves them. The exception holds for that action only, and only while it runs on `pull_request`, never `pull_request_target`, with no secrets, a read-only token on fork PRs, and `persist-credentials: false`, and only reads the checked-out files. It still runs its scripts from `github.action_path` and never checks out goal-agent.
+- **Sync action renders from the target commit** ([#115][i115]). The Home repo sync action (`.github/actions/home-sync/`) takes one input, the target commit, and is the one unit that runs goal-agent code from a commit other than its `uses:` SHA: its script (from the `uses:` commit) first requires the target to be a full 40-hex SHA that the compare API reports `behind` or `identical` against goal-agent's `main`, then fetches the target and runs that commit's renderer. A commit on `main` is reviewed code, which is the property the `uses:` SHA gives the other units. It checks out the Home repo's default branch without credentials and pushes one branch and opens one PR with the job's `GITHUB_TOKEN` (`contents: write`, `pull-requests: write`; no secrets). The input reaches the script through `env`, never through `run`. Its PR starts no workflows (GitHub's rule for `GITHUB_TOKEN`) and the repo setting "Allow GitHub Actions to create pull requests" must be on ([R59][r59]).
 
 [ctx]: https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#job-context
 [envrun]: https://github.com/hsmejky/goal-agent/actions/runs/38973718004
@@ -76,4 +77,5 @@ The caller files are rendered, not hand-copied. `templates/` at the pin holds th
 [i107]: https://github.com/hsmejky/goal-agent/issues/107
 [i112]: https://github.com/hsmejky/goal-agent/issues/112
 [i114]: https://github.com/hsmejky/goal-agent/issues/114
+[i115]: https://github.com/hsmejky/goal-agent/issues/115
 [i117]: https://github.com/hsmejky/goal-agent/issues/117

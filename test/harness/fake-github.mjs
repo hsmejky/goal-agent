@@ -13,7 +13,7 @@ export function newState(seed = {}) {
   const repos = { ...(seed.repos ?? {}) };
   if (seed.repo) repos[seed.repo] = seed;
   for (const [name, r] of Object.entries(repos)) {
-    const repo = { issues: {}, comments: {}, pulls: {}, commits: {}, statuses: {} };
+    const repo = { issues: {}, comments: {}, pulls: {}, commits: {}, statuses: {}, compare: { ...(r.compare ?? {}) } };
     for (const i of r.issues ?? []) {
       repo.issues[i.number] = { state: "open", body: "", user: { login: "someone" }, ...i, labels: [...(i.labels ?? [])] };
       repo.comments[i.number] = (i.comments ?? []).map((c) => ({ id: state.nextId++, user: { login: "someone" }, ...c }));
@@ -102,6 +102,15 @@ const ROUTES = [
     return ok(Object.values(repo.pulls).filter((p) => want === "all" || p.state === want).map(asPull));
   }],
   ["GET", /^pulls\/(\d+)$/, (s, repo, m) => (repo.pulls[m[1]] ? ok(asPull(repo.pulls[m[1]])) : notFound("pull"))],
+  ["POST", /^pulls$/, (s, repo, _m, { body, name }) => {
+    const number = s.nextId++;
+    const pr = { number, state: "open", merged: false, title: body.title ?? "", body: body.body ?? "", base: { ref: body.base }, head: { ref: body.head, sha: null }, html_url: `https://github.com/${name}/pull/${number}` };
+    repo.pulls[number] = pr;
+    record(s, "pull-create", name, { number, title: pr.title, head: body.head, base: body.base, body: pr.body });
+    return ok(asPull(pr), 201);
+  }],
+  // compare: seeded as { "main...<sha>": "behind" | "identical" | "ahead" | "diverged" }; anything else is 404
+  ["GET", /^compare\/(.+)$/, (s, repo, m) => (repo.compare[decodeURIComponent(m[1])] ? ok({ status: repo.compare[decodeURIComponent(m[1])] }) : notFound("compare"))],
   // commits
   ["GET", /^commits\/([^/]+)$/, (s, repo, m) => (repo.commits[m[1]] ? ok({ sha: m[1], files: repo.commits[m[1]].files.map((f) => (typeof f === "string" ? { filename: f } : f)) }) : notFound("commit"))],
   ["GET", /^commits\/([^/]+)\/pulls$/, (s, repo, m) => ok((repo.commits[m[1]]?.pulls ?? []).map((n) => asPull(repo.pulls[n])).filter(Boolean))],

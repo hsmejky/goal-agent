@@ -20,13 +20,15 @@ const units = [
   { dir: "home-audit", script: "scripts/home/audit.mjs", token: true, checkout: "default" },
   { dir: "home-staleness", script: "scripts/home/staleness.mjs", token: true, checkout: "default" },
   { dir: "home-drift-check", script: "scripts/home/drift-check.mjs", token: true, checkout: "event" },
+  // The sync takes the target commit as its one input, read by the script from the env, never put into `run`.
+  { dir: "home-sync", script: "scripts/home/sync.mjs", token: true, checkout: "default", input: "target" },
 ];
 
 test("every action under .github/actions is covered by this table", () => {
   assert.deepEqual([...dirs].sort(), units.map((u) => u.dir).sort());
 });
 
-for (const { dir, script, token, checkout } of units) {
+for (const { dir, script, token, checkout, input } of units) {
   const text = code(dir);
 
   test(`${dir}: a composite action`, () => {
@@ -72,7 +74,12 @@ for (const { dir, script, token, checkout } of units) {
 
   test(`${dir}: no secrets and no inputs${token ? "; the token is the caller's GITHUB_TOKEN" : ""}`, () => {
     assert.doesNotMatch(text, /secrets\b|toJSON/);
-    assert.doesNotMatch(text, /^inputs:/m);
+    if (input === undefined) assert.doesNotMatch(text, /^inputs:/m);
+    else {
+      assert.match(text, new RegExp(`^inputs:\\n  ${input}:\\n(    .*\\n)+\\nruns:`, "m"), "the one declared input");
+      assert.equal((text.match(/\$\{\{ inputs\./g) ?? []).length, 1);
+      assert.match(text, /^\s+TARGET: \$\{\{ inputs\.target \}\}$/m, "the input reaches the script through env only");
+    }
     if (token) assert.match(text, /GH_TOKEN: \$\{\{ github\.token \}\}/);
   });
 }
